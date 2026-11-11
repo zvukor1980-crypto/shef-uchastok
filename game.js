@@ -215,9 +215,57 @@ function roomBox(id){
   const L=LAYOUT[id];
   return {left:L.l+"%", top:(wingTop(L.wing)+L.t*0.5)+"%", width:L.w+"%", height:(L.h*0.5)+"%"};
 }
-function scrollToRoom(id){
+/* ===== scroll lock: never yank the station while the player is browsing ===== */
+const USER_SCROLL_GUARD=6000;
+let _userScrollAt=0, _scrollTimer=0, _savedStageScroll=0;
+
+function stageEl(){ return $("#stage"); }
+function saveStageScroll(){
+  const s=stageEl();
+  if(s) _savedStageScroll=s.scrollTop|0;
+  return _savedStageScroll;
+}
+function restoreStageScroll(){
+  const s=stageEl();
+  if(s) s.scrollTop=_savedStageScroll;
+}
+function cancelAutoScroll(){
+  if(_scrollTimer){ clearTimeout(_scrollTimer); _scrollTimer=0; }
+}
+function markUserScroll(){
+  _userScrollAt=Date.now();
+  cancelAutoScroll();
+}
+function userIsScrolling(){
+  return (Date.now()-_userScrollAt) < USER_SCROLL_GUARD;
+}
+function scrollStageToEl(el, opts){
+  const force=opts&&opts.force;
+  const smooth=!(opts&&opts.smooth===false);
+  const stage=stageEl();
+  if(!stage||!el) return;
+  if(!force && userIsScrolling()) return;
+  const run=()=>{
+    if(!force && userIsScrolling()) return;
+    const sr=stage.getBoundingClientRect();
+    const er=el.getBoundingClientRect();
+    if(er.width<2) return;
+    const delta=(er.top+er.height/2)-(sr.top+sr.height/2);
+    const max=Math.max(0, stage.scrollHeight-stage.clientHeight);
+    const next=Math.max(0, Math.min(max, stage.scrollTop+delta));
+    if(Math.abs(next-stage.scrollTop)<8) return;
+    if(typeof stage.scrollTo==="function"){
+      try{ stage.scrollTo({top:next, behavior:smooth?"smooth":"auto"}); }
+      catch(e){ stage.scrollTop=next; }
+    }else stage.scrollTop=next;
+  };
+  cancelAutoScroll();
+  if(opts&&opts.delay){ _scrollTimer=setTimeout(run, opts.delay); }
+  else run();
+}
+function scrollToRoom(id, opts){
   const el=document.querySelector('[data-testid="room-'+id+'"]');
-  if(el) el.scrollIntoView({block:"center", behavior:"smooth"});
+  if(el) scrollStageToEl(el, opts);
 }
 
 /* ===== actors ===== */
@@ -992,7 +1040,7 @@ function assignHero(arg){
   closeModal();
   setTab("station");
   spawnStaff(id);
-  scrollToRoom(room);
+  scrollToRoom(room, {force:true, smooth:true});
   AU.appear();
   dropToasts(m=>/посадите/i.test(m));
   if(S.guideDone) toast(HEROES[id].name+" села за стол: "+ROOMS[room].name);
@@ -1006,7 +1054,7 @@ function assignHero(arg){
   guideEvent("assign");
   guideEvent("assign:"+room);
   renderActors();
-  setTimeout(()=>scrollToRoom(room), 50);
+  setTimeout(()=>scrollToRoom(room, {force:true, smooth:true}), 50);
 }
 
 function renderTasks(){
@@ -1193,8 +1241,24 @@ function collectVip(){
   AU.ok(); confetti();
 }
 
-function openModal(html){const m=$("#modal");m.classList.remove("hidden");m.style.display="";m.innerHTML=`<div class="box">${html}<button type="button" class="close" data-act="close" aria-label="Закрыть">✕</button></div>`; placePointer(); }
-function closeModal(){const m=$("#modal");m.classList.add("hidden");m.style.display="";m.innerHTML=""; placePointer(); }
+function openModal(html){
+  saveStageScroll();
+  const m=$("#modal");
+  m.classList.remove("hidden"); m.style.display="";
+  m.innerHTML=`<div class="box" tabindex="-1">${html}<button type="button" class="close" data-act="close" aria-label="Закрыть">✕</button></div>`;
+  const box=m.querySelector(".box");
+  if(box && box.focus){ try{ box.focus({preventScroll:true}); }catch(e){} }
+  placePointer();
+  restoreStageScroll();
+  requestAnimationFrame(restoreStageScroll);
+}
+function closeModal(){
+  const m=$("#modal");
+  m.classList.add("hidden"); m.style.display=""; m.innerHTML="";
+  restoreStageScroll();
+  requestAnimationFrame(restoreStageScroll);
+  placePointer();
+}
 
 function onAct(act,arg){
   AU.init(); if(AU.ctx&&AU.ctx.state==="suspended") AU.ctx.resume();
@@ -1493,10 +1557,17 @@ function updateQuest(){
 function followQuest(silent){
   const q=questInfo();
   if(TAB!=="station" && q.sel && !/tab-/.test(q.sel||"")) setTab("station");
-  if(q.room) scrollToRoom(q.room);
+  const force=!silent; // user tapped «?» / bar — always go there; new step does not if they are scrolling
+  if(force){ _userScrollAt=0; cancelAutoScroll(); }
+  if(q.room) scrollToRoom(q.room, {force:force, smooth:true});
   else if(q.sel){
     const el=document.querySelector(q.sel.split(",")[0].trim());
-    if(el) el.scrollIntoView({block:"center", behavior:"smooth"});
+    if(el && (force || el.closest("#stage") || el.closest("#tabs"))){
+      if(el.closest("#stage")) scrollStageToEl(el, {force:force, smooth:true});
+      else if(force && el.scrollIntoView){
+        try{ el.scrollIntoView({block:"nearest", inline:"nearest", behavior:"smooth"}); }catch(e){}
+      }
+    }
   }
   if(!silent && q.nika) showNikaTip(q.nika);
   setTimeout(()=>placePointer(), 280);
@@ -1523,13 +1594,6 @@ function placePointer(){
   if(!el){ hide(); return; }
   const r=el.getBoundingClientRect();
   if(r.width<2){ hide(); return; }
-  // if target is off-screen on the station, nudge scroll (throttled)
-  if(TAB==="station" && (r.top<80 || r.bottom>innerHeight-70) && S._questRoom){
-    if(!S._scrollNudge || Date.now()-S._scrollNudge>1200){
-      S._scrollNudge=Date.now();
-      scrollToRoom(S._questRoom);
-    }
-  }
   p.classList.remove("hidden");
   p.style.left=(r.left+r.width/2)+"px";
   p.style.top=(r.bottom-6)+"px";
@@ -1583,8 +1647,15 @@ async function start(){
   renderBubbles();
 
   const stage=$("#stage"), hint=$("#hint");
-  const hideHint=()=>{ if(stage.scrollTop>40 && hint) hint.classList.add("gone"); };
-  stage.addEventListener("scroll", hideHint, {passive:true});
+  const hideHint=()=>{ if(stage && stage.scrollTop>40 && hint) hint.classList.add("gone"); };
+  const onUserBrowse=()=>{ markUserScroll(); hideHint(); };
+  if(stage){
+    stage.addEventListener("scroll", onUserBrowse, {passive:true});
+    stage.addEventListener("touchstart", markUserScroll, {passive:true});
+    stage.addEventListener("touchmove", markUserScroll, {passive:true});
+    stage.addEventListener("wheel", markUserScroll, {passive:true});
+    stage.addEventListener("pointerdown", ev=>{ if(ev.pointerType!=="mouse"||ev.buttons) markUserScroll(); }, {passive:true});
+  }
 
   document.body.addEventListener("click",ev=>{
     const b=ev.target.closest("[data-act]");
@@ -1621,7 +1692,7 @@ async function start(){
 }
 
 start().catch(e=>{console.error(e);$("#ldtxt").textContent="Ошибка загрузки";});
-window.__GAME=()=>({S,TAB,collectRoom,skipAll,openRoom,setTab,save,upgradeRoom,buy,closeModal,startWork,addRes,openInterrog,iqPick,assignHero,spawnStaff,giveHero,spawnCitizen,guideEvent,showGuide,followQuest,currentQuest,chainStep,syncQuestFromState,completeQuest,finishGuide,QUEST_CHAIN});
+window.__GAME=()=>({S,TAB,collectRoom,skipAll,openRoom,setTab,save,upgradeRoom,buy,closeModal,startWork,addRes,openInterrog,iqPick,assignHero,spawnStaff,giveHero,spawnCitizen,guideEvent,showGuide,followQuest,currentQuest,chainStep,syncQuestFromState,completeQuest,finishGuide,QUEST_CHAIN,scrollToRoom,markUserScroll,saveStageScroll,restoreStageScroll});
 
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{
@@ -1629,7 +1700,7 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
       if(refreshing) return; refreshing=true; location.reload();
     });
-    navigator.serviceWorker.register("sw.js?v=6").then(reg=>{
+    navigator.serviceWorker.register("sw.js?v=7").then(reg=>{
       setInterval(()=>reg.update(), 60*1000);
       reg.addEventListener("updatefound",()=>{
         const w=reg.installing;

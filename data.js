@@ -219,3 +219,43 @@ const IQ_CLUES = [
 ];
 
 const SPAWN_MIN=10, SPAWN_MAX=14, QUEUE_MAX=3, AUTO_SEND=14;
+
+const OUTFIT_COLORS = [
+  {id:"black",  name:"Чёрная",  css:"#111"},
+  {id:"red",    name:"Красная", css:"#9b1b2e"},
+  {id:"purple", name:"Фиолетовая", css:"#6b21a8"},
+  {id:"white",  name:"Белая",   css:"#e8e8f0"}
+];
+
+function heroSprite(id, outfit){
+  const c = outfit || "black";
+  if(c && c!=="black") return "assets/sprites/"+id+"-"+c+".webp";
+  return "assets/sprites/"+id+".webp";
+}
+
+const CASES = [
+  {id:"bag",     title:"Кража сумочки",        story:"У жительницы у киоска пропала любимая сумочка.",          civ:"civ-woman", suspect:"suspect-f",    line:"Я просто придержала её, пока выбирали мороженое!"},
+  {id:"scooter", title:"Угон самоката",        story:"Самокат улетел из-под носа у владельца на площади.",     civ:"civ-man",   suspect:"suspect-hood", line:"Я хотел только доехать до остановки, честно!"},
+  {id:"graf",    title:"Граффити на заборе",   story:"На новом заборе участка появилась огромная подпись.",    civ:"civ-older", suspect:"suspect-m",    line:"Это искусство! Вы просто не понимаете стиль."},
+  {id:"cat",     title:"Пропал кот Барсик",    story:"Пушистый Барсик не вернулся к ужину. Житель в панике.", civ:"civ-older", suspect:"suspect-f",    line:"Кот сам зашёл в подъезд, я только открыл дверь."},
+  {id:"noise",   title:"Соседский шум",        story:"Сосед пел караоке до утра — весь дом на ногах.",        civ:"civ-woman", suspect:"suspect-hood", line:"Я думал, у всех отличный слух…"},
+  {id:"wallet",  title:"Потерянный кошелёк",   story:"Кошелёк исчез на рынке между прилавками.",               civ:"civ-man",   suspect:"suspect-m",    line:"Я хотел отнести его в бюро находок, вот!"},
+  {id:"cake",    title:"Спор из-за торта",     story:"Два соседа не поделили последний торт в пекарне.",      civ:"civ-woman", suspect:"suspect-f",    line:"Это был мой торт, я стояла первой!"},
+  {id:"bike",    title:"Велосипед «на минутку»",story:"Велосипед одолжили «на минутку» ещё вчера.",            civ:"civ-man",   suspect:"suspect-hood", line:"Цепь упала, я чинил его весь вечер."},
+  {id:"boss",    title:"Особо опасный",        story:"В городе появился известный нарушитель. Это особое дело!", civ:"civ-older", suspect:"suspect-boss", boss:true, line:"У вас ничего на меня нет. Это всё совпадение."}
+];
+
+const ACHIEVES = [
+  {id:"a1", name:"Первое дело",        desc:"Закройте первый допрос",           key:"interrogs", need:1,  rew:{diamonds:40, cash:500}},
+  {id:"a2", name:"Следователь",        desc:"Закройте 5 дел",                   key:"interrogs", need:5,  rew:{diamonds:80, cash:2000}},
+  {id:"a3", name:"Быстрый шеф",        desc:"Соберите серию из 3 дел подряд",   key:"maxCombo",  need:3,  rew:{diamonds:60}},
+  {id:"a4", name:"Команда мечты",      desc:"Назначьте 3 героинь за столы",     key:"assigns",   need:3,  rew:{diamonds:70}},
+  {id:"a5", name:"Уютный участок",     desc:"Улучшите комнаты 5 раз",           key:"upgrades",  need:5,  rew:{cash:3000, diamonds:50}},
+  {id:"a6", name:"Щедрая касса",       desc:"Соберите 10 000 ₽",                key:"cashGot",   need:10000, rew:{diamonds:80}},
+  {id:"a7", name:"Звезда отдела",      desc:"Наберите любую героиню",           key:"heroActs",  need:1,  rew:{diamonds:50}},
+  {id:"a8", name:"Особый улов",        desc:"Поймайте особо опасного",          key:"bosses",    need:1,  rew:{diamonds:120, cash:4000}}
+];
+
+const VIP_LINES = ["Инспекция с подарком!","Знаменитость заглянула в участок!","Тайный благотворитель."];
+
+const SAY_START = ["Приступаю, шеф!","За стол, как приказали!","Я на месте.","Можно начинать!"];

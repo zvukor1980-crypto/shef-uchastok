@@ -36,6 +36,11 @@
       </div>
       <div class="res-row" id="resrow"></div>
       <div class="sat-row"><span>Удовлетворённость</span><div class="sat-bar"><i id="satfill"></i></div><b id="satn">0</b></div>
+      <button type="button" id="questbar" data-testid="questbar" aria-label="Следующее дело">
+        <img class="qb-ava" src="assets/heroes/nika.webp" alt="">
+        <div class="qb-txt"><b>Следующее дело</b><span id="questtxt">Добро пожаловать в участок!</span></div>
+        <i id="combobadge" class="hidden">×1</i>
+      </button>
     </header>
 
     <div id="stage">
@@ -47,6 +52,7 @@
           <div class="wing" id="wing2">
             <img src="assets/rooms/wing-more.webp" alt="Новые комнаты" draggable="false">
           </div>
+          <div id="daytint"></div>
           <div id="hotspots"></div>
           <div id="actors"></div>
           <div id="bubbles"></div>
@@ -66,6 +72,17 @@
     </nav>
   </div>
 
+  <div id="pointer" class="hidden" aria-hidden="true"><span class="finger">👇</span></div>
+  <div id="coach" class="hidden">
+    <img id="coachava" src="assets/heroes/nika.webp" alt="Ника">
+    <div class="coach-b">
+      <b>Ника</b>
+      <p id="coachtxt"></p>
+      <button class="btn" id="coachbtn" data-act="guidenext" data-testid="guide-next">Дальше</button>
+    </div>
+  </div>
+  <div id="fx"></div>
+  <div id="cinema" class="hidden"></div>
   <div id="iq" class="hidden"></div>
   <div id="modal" class="hidden"></div>
   <div id="toasts"></div>

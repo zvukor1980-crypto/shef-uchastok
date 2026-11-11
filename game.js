@@ -128,11 +128,63 @@ function save(){
 function mark(){dirty=true;}
 function addRes(k,n){S[k]=(S[k]||0)+n; if(k==="cash"&&n>0) addStat("cashGot",n); mark(); hud();}
 function addStat(k,n){S.stats[k]=(S.stats[k]||0)+n; if(S.tasks.day===todayKey()) S.tasks.prog[k]=(S.tasks.prog[k]||0)+n; checkAchieves(); mark();}
+const TQ={q:[],shown:null,timer:null};
+function _norm(s){ return (s||"").toLowerCase().replace(/[«»""!.,;:!?—–-]/g," ").replace(/\s+/g," ").trim(); }
+function similarText(a,b){
+  const na=_norm(a), nb=_norm(b);
+  if(!na||!nb) return false;
+  if(na.includes(nb)||nb.includes(na)) return true;
+  const wa=new Set(na.split(" ").filter(w=>w.length>4));
+  const hit=nb.split(" ").filter(w=>w.length>4 && wa.has(w)).length;
+  return hit>=3;
+}
+function toastRedundant(msg){
+  if(!S || S.guideDone) return false;
+  const st=GUIDE_STEPS[S.guideStep];
+  if(!st) return false;
+  if(/посадите|села за стол/i.test(msg) && (st.id==="seat"||st.id==="wow"||st.id==="det")) return true;
+  if(/обучение закончено|вы — шеф/i.test(msg) && (st.id==="done"||S.guideStep>=GUIDE_STEPS.length-1)) return true;
+  return similarText(st.text, msg);
+}
+function toastStale(msg){
+  if(/посадите/i.test(msg) && S && S.rooms && S.rooms.detective && S.rooms.detective.hero) return true;
+  return false;
+}
+function dropToasts(pred){
+  TQ.q=TQ.q.filter(m=>!pred(m));
+  if(TQ.shown && pred(TQ.shown)){
+    if(TQ.timer) clearTimeout(TQ.timer);
+    TQ.shown=null; TQ.timer=null;
+    const box=$("#toasts"); if(box) box.innerHTML="";
+    pumpToast();
+  }
+}
+function placeToasts(){
+  const box=$("#toasts"); if(!box) return;
+  const coach=$("#coach");
+  const coachOn=coach && !coach.classList.contains("hidden") && !coach.classList.contains("coach-top")
+    && (!$("#modal") || $("#modal").classList.contains("hidden"));
+  box.classList.toggle("mid", !!coachOn);
+}
+function pumpToast(){
+  if(TQ.shown) return;
+  TQ.q=TQ.q.filter(m=>!toastStale(m) && !toastRedundant(m));
+  const msg=TQ.q.shift();
+  if(!msg) return;
+  const box=$("#toasts"); if(!box) return;
+  box.innerHTML="";
+  const el=document.createElement("div"); el.className="toast"; el.textContent=msg;
+  box.appendChild(el);
+  TQ.shown=msg;
+  placeToasts();
+  TQ.timer=setTimeout(()=>{ el.remove(); TQ.shown=null; TQ.timer=null; pumpToast(); }, 1800);
+}
 function toast(msg){
-  const box=$("#toasts");
-  while(box.children.length>=3) box.firstChild.remove();
-  const t=document.createElement("div"); t.className="toast"; t.textContent=msg;
-  box.appendChild(t); setTimeout(()=>t.remove(),2600);
+  if(!msg) return;
+  if(toastStale(msg) || toastRedundant(msg)) return;
+  if(TQ.shown===msg || TQ.q.includes(msg)) return;
+  TQ.q.push(msg);
+  pumpToast();
 }
 function pick(arr){return arr[Math.random()*arr.length|0];}
 
@@ -931,7 +983,8 @@ function assignHero(arg){
   spawnStaff(id);
   scrollToRoom(room);
   AU.appear();
-  toast(HEROES[id].name+" села за стол: "+ROOMS[room].name);
+  dropToasts(m=>/посадите/i.test(m));
+  if(S.guideDone) toast(HEROES[id].name+" села за стол: "+ROOMS[room].name);
   if(!S.guideDone && room==="detective" && S.rooms.detective.in>0){
     if(!S.rooms.detective.work) startWork("detective");
     S.rooms.detective.prog=1; finishWork("detective");
@@ -1219,7 +1272,7 @@ function onEnterGuide(){
     setTimeout(()=>{ if(S.guideStep===1){ S.guideStep=2; showGuide(); } }, 2500);
   }
   if(st.id==="seat"){
-    if(!S.heroes.marina.owned){ giveHero("marina"); toast("Детектив Марина уже в отделе — посадите её за стол!"); }
+    if(!S.heroes.marina.owned){ giveHero("marina"); }
     // keep detective modal open if possible
     if($("#modal").classList.contains("hidden")) openRoom("detective");
     else renderRoomModal("detective");
@@ -1244,7 +1297,7 @@ function finishGuide(){
   $("#coach").classList.add("hidden");
   placePointer();
   updateQuest();
-  toast("Обучение закончено. Вы — шеф!");
+  // Ника already says this in the last bubble
   mark();
 }
 
@@ -1291,7 +1344,7 @@ function placePointer(){
   }
   if(!S.guideDone && S.guideStep<GUIDE_STEPS.length){ const cch=$("#coach"); if(cch) cch.classList.remove("hidden"); }
   const sel=S._questSel;
-  if(!sel){ p.classList.add("hidden"); return; }
+  if(!sel){ p.classList.add("hidden"); layoutCoach(null); return; }
   // prefer visible element
   let el=null;
   for(const s of sel.split(",")){
@@ -1303,12 +1356,48 @@ function placePointer(){
       if(!el) el=n;
     }
   }
-  if(!el){ p.classList.add("hidden"); return; }
+  if(!el){ p.classList.add("hidden"); layoutCoach(null); return; }
   const r=el.getBoundingClientRect();
-  if(r.width<2){ p.classList.add("hidden"); return; }
+  if(r.width<2){ p.classList.add("hidden"); layoutCoach(null); return; }
   p.classList.remove("hidden");
   p.style.left=(r.left+r.width/2)+"px";
   p.style.top=(r.bottom-8)+"px";
+  layoutCoach(r);
+}
+function layoutCoach(targetRect){
+  const box=$("#coach"); if(!box || box.classList.contains("hidden")) { placeToasts(); return; }
+  const modal=$("#modal");
+  if(modal && !modal.classList.contains("hidden")) { placeToasts(); return; }
+  if(!targetRect){
+    box.classList.remove("coach-top");
+    box.style.top=""; box.style.bottom=""; box.style.left=""; box.style.right=""; box.style.maxWidth="";
+    placeToasts(); return;
+  }
+  const midY=(targetRect.top+targetRect.bottom)/2;
+  const lower=targetRect && midY > innerHeight*0.52;
+  box.classList.toggle("coach-top", !!lower);
+  if(lower){
+    const tb=topbar?topbar.getBoundingClientRect().bottom: (80+ (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-t"))||0));
+    box.style.top=(tb+6)+"px";
+    box.style.bottom="auto";
+  }else{
+    box.style.top="";
+    box.style.bottom="";
+  }
+  // if still overlapping the target, flip side
+  const cr=box.getBoundingClientRect();
+  if(targetRect && !(cr.right<targetRect.left-8 || cr.left>targetRect.right+8 || cr.bottom<targetRect.top-8 || cr.top>targetRect.bottom+8)){
+    // overlap remains: push coach to the opposite horizontal side
+    const targetLeft=targetRect.left+targetRect.width/2 < innerWidth/2;
+    box.style.left=targetLeft? "auto" : "10px";
+    box.style.right=targetLeft? "10px" : "auto";
+    box.style.maxWidth="70%";
+  }else{
+    box.style.left="";
+    box.style.right="";
+    box.style.maxWidth="";
+  }
+  placeToasts();
 }
 
 function frame(ts){

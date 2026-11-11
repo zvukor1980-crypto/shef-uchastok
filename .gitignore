@@ -1,0 +1,5 @@
+raw/
+process_assets.py
+test.cjs
+*.log
+.DS_Store

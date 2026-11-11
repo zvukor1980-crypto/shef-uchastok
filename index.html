@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Шеф полиции: Участок</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Участок">
+<meta name="theme-color" content="#071428">
+<meta name="description" content="Управляйте полицейским участком: принимайте заявления, расследуйте дела, проводите допросы и улучшайте комнаты.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="loading">
+    <img class="ld-icon" src="apple-touch-icon.png" alt="">
+    <div class="ld-title">ШЕФ ПОЛИЦИИ<br><span>УЧАСТОК</span></div>
+    <div class="ld-bar"><i id="ldfill"></i></div>
+    <div class="ld-txt" id="ldtxt">Загрузка…</div>
+  </div>
+
+  <div id="game" class="hidden">
+    <header id="topbar">
+      <div class="tb-row">
+        <img class="avatar" id="avatar" src="assets/avatar.webp" alt="">
+        <div class="tb-title">
+          <b>ШЕФ ПОЛИЦИИ</b>
+          <span>Участок · ур. <i id="chiefLv">1</i></span>
+        </div>
+        <button class="icon-btn" id="btnMute" data-act="mute" aria-label="Звук">🔊</button>
+      </div>
+      <div class="res-row" id="resrow"></div>
+      <div class="sat-row"><span>Удовлетворённость</span><div class="sat-bar"><i id="satfill"></i></div><b id="satn">0%</b></div>
+    </header>
+
+    <div id="stage">
+      <canvas id="cv"></canvas>
+      <div id="hudHint" class="hidden"></div>
+    </div>
+
+    <div id="sheet" class="hidden"></div>
+
+    <nav id="tabs">
+      <button class="tab on" data-act="tab" data-arg="station" data-testid="tab-station"><span class="ti">🏛️</span>Участок</button>
+      <button class="tab" data-act="tab" data-arg="heroes" data-testid="tab-heroes"><span class="ti">⭐</span>Героини</button>
+      <button class="tab" data-act="tab" data-arg="tasks" data-testid="tab-tasks"><span class="ti">📋</span>Задания</button>
+      <button class="tab shop" data-act="tab" data-arg="shop" data-testid="tab-shop"><span class="ti">🛒</span>Магазин<div class="free">БЕСПЛАТНО</div></button>
+    </nav>
+  </div>
+
+  <div id="modal" class="hidden"></div>
+  <div id="toasts"></div>
+</div>
+<script src="data.js"></script>
+<script src="render.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

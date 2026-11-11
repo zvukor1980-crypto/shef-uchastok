@@ -3,3 +3,4 @@ process_assets.py
 test.cjs
 *.log
 .DS_Store
+process_v2.py

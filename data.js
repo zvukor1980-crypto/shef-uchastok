@@ -23,16 +23,16 @@ const HEROES = {
 const HERO_ORDER = ["anna","marina","olga","darya","elena","irina","victoria","katya","sofia","alina","natalya","polina"];
 
 const ROOMS = {
-  reception:  {id:"reception",  name:"Приёмная",           short:"Заявления",  kind:"chain",     unlock:1, gx:0,  gy:0,  gw:8, gh:7,  next:"detective",  inKey:null,        outKey:"docs",      baseTime:3.2, baseCap:8,  color:"#3d7ac7"},
-  detective:  {id:"detective",  name:"Кабинет детектива",  short:"Расследование",kind:"chain",   unlock:1, gx:8,  gy:0,  gw:7, gh:7,  next:"garage",     inKey:"docs",       outKey:"warrants",  baseTime:3.6, baseCap:8,  color:"#3a6a9a"},
+  reception:  {id:"reception",  name:"Приёмная",           short:"Заявления",  kind:"chain",     unlock:1, gx:0,  gy:0,  gw:8, gh:7,  next:"detective",  inKey:null,        outKey:"docs",      baseTime:5.8, baseCap:8,  color:"#3d7ac7"},
+  detective:  {id:"detective",  name:"Кабинет детектива",  short:"Расследование",kind:"chain",   unlock:1, gx:8,  gy:0,  gw:7, gh:7,  next:"garage",     inKey:"docs",       outKey:"warrants",  baseTime:6.2, baseCap:8,  color:"#3a6a9a"},
   cells:      {id:"cells",      name:"Камеры",             short:"Заключённые",kind:"holding",   unlock:1, gx:0,  gy:7,  gw:8, gh:6,  next:null,         inKey:"inmates",    outKey:"cash",      baseTime:4.0, baseCap:4,  color:"#4a5568", income:3},
-  interrog:   {id:"interrog",   name:"Допросная",          short:"Допрос",     kind:"interrog",  unlock:1, gx:8,  gy:7,  gw:7, gh:6,  next:"cells",      inKey:"suspects",   outKey:"inmates",   baseTime:3.8, baseCap:5,  color:"#3a3a55"},
-  garage:     {id:"garage",     name:"Гараж",              short:"Патруль",    kind:"patrol",    unlock:1, gx:0,  gy:13, gw:8, gh:7,  next:"interrog",   inKey:"warrants",   outKey:"suspects",  baseTime:4.2, baseCap:4,  color:"#4a6a88", need:"gas", needAmt:1},
+  interrog:   {id:"interrog",   name:"Допросная",          short:"Допрос",     kind:"interrog",  unlock:1, gx:8,  gy:7,  gw:7, gh:6,  next:"cells",      inKey:"suspects",   outKey:"inmates",   baseTime:6.0, baseCap:5,  color:"#3a3a55"},
+  garage:     {id:"garage",     name:"Гараж",              short:"Патруль",    kind:"patrol",    unlock:1, gx:0,  gy:13, gw:8, gh:7,  next:"interrog",   inKey:"warrants",   outKey:"suspects",  baseTime:7.0, baseCap:4,  color:"#4a6a88", need:"gas", needAmt:1},
   chief:      {id:"chief",      name:"Кабинет шефа",       short:"Шеф",        kind:"chief",     unlock:1, gx:17, gy:0,  gw:7, gh:7,  next:null,         inKey:null,        outKey:null,       baseTime:0,   baseCap:0,  color:"#3a5a8a"},
-  armory:     {id:"armory",     name:"Оружейная",          short:"Патроны",    kind:"resource",  unlock:2, gx:17, gy:7,  gw:7, gh:6,  next:null,         inKey:null,        outKey:"ammo",      baseTime:5.0, baseCap:20, color:"#4a4a5a", prod:"ammo",  prodAmt:3},
-  electric:   {id:"electric",   name:"Электрощитовая",     short:"Электричество",kind:"resource",unlock:3, gx:17, gy:13, gw:7, gh:7,  next:null,         inKey:null,        outKey:"elec",      baseTime:5.0, baseCap:20, color:"#3a5a4a", prod:"elec",  prodAmt:3},
+  armory:     {id:"armory",     name:"Оружейная",          short:"Патроны",    kind:"resource",  unlock:2, gx:17, gy:7,  gw:7, gh:6,  next:null,         inKey:null,        outKey:"ammo",      baseTime:6.5, baseCap:20, color:"#4a4a5a", prod:"ammo",  prodAmt:3},
+  electric:   {id:"electric",   name:"Электрощитовая",     short:"Электричество",kind:"resource",unlock:3, gx:17, gy:13, gw:7, gh:7,  next:null,         inKey:null,        outKey:"elec",      baseTime:6.5, baseCap:20, color:"#3a5a4a", prod:"elec",  prodAmt:3},
   suggest:    {id:"suggest",    name:"Ящик предложений",   short:"Предложения",kind:"mailbox",   unlock:3, gx:17, gy:20, gw:7, gh:6,  next:null,         inKey:null,        outKey:null,       baseTime:0,   baseCap:0,  color:"#5a4a3a"},
-  gasstation: {id:"gasstation", name:"Заправка",           short:"Бензин",     kind:"resource",  unlock:5, gx:17, gy:26, gw:7, gh:6,  next:null,         inKey:null,        outKey:"gas",       baseTime:5.0, baseCap:20, color:"#5a6a3a", prod:"gas",   prodAmt:3},
+  gasstation: {id:"gasstation", name:"Заправка",           short:"Бензин",     kind:"resource",  unlock:5, gx:17, gy:26, gw:7, gh:6,  next:null,         inKey:null,        outKey:"gas",       baseTime:6.5, baseCap:20, color:"#5a6a3a", prod:"gas",   prodAmt:3},
   press:      {id:"press",      name:"Пресс-центр",        short:"Приказы",    kind:"orders",    unlock:6, gx:24, gy:13, gw:8, gh:13,  next:null,         inKey:null,        outKey:null,       baseTime:0,   baseCap:0,  color:"#3a4a7a"}
 };
 const ROOM_ORDER = ["reception","detective","interrog","cells","garage","chief","armory","electric","suggest","gasstation","press"];
@@ -182,3 +182,40 @@ function defaultState(){
     bubbles:[]
   };
 }
+
+/* Раскладка комнат: проценты от своего крыла (1 = верхнее, 2 = нижнее) */
+const LAYOUT = {
+  reception:  {wing:1, l:3,  t:8,  w:50, h:37, lx:27, ly:11, ax:22, ay:34, px:14, py:40},
+  detective:  {wing:1, l:51, t:7,  w:46, h:30, lx:74, ly:10, ax:64, ay:34},
+  interrog:   {wing:1, l:50, t:36, w:48, h:26, lx:82, ly:36, ax:62, ay:56},
+  cells:      {wing:1, l:3,  t:47, w:48, h:32, lx:24, ly:51, ax:24, ay:68},
+  garage:     {wing:1, l:48, t:60, w:50, h:36, lx:74, ly:63, ax:72, ay:82, ox:88, oy:96},
+  chief:      {wing:2, l:3,  t:6,  w:47, h:30, lx:26, ly:9,  ax:28, ay:28},
+  armory:     {wing:2, l:51, t:6,  w:46, h:30, lx:74, ly:9,  ax:72, ay:28},
+  electric:   {wing:2, l:3,  t:36, w:47, h:26, lx:26, ly:39, ax:24, ay:52},
+  suggest:    {wing:2, l:51, t:36, w:46, h:26, lx:74, ly:39, ax:74, ay:52},
+  gasstation: {wing:2, l:3,  t:62, w:47, h:34, lx:26, ly:65, ax:26, ay:82},
+  press:      {wing:2, l:51, t:62, w:46, h:34, lx:74, ly:65, ax:74, ay:82}
+};
+// точки входа граждан (доля крыла 1)
+const ENTRANCE = {x:8, y:36};
+
+const SAY = {
+  citizen:["Помогите, пожалуйста!","Нужно заявление!","У меня пропала сумка!","Сосед шумит всю ночь!","Украли велосипед!","Что-то подозрительное у дома…"],
+  staff:["Сейчас оформлю.","Документы готовы!","Ордер подписан.","Выезжаем!","Сейчас разберёмся.","Порядок будет."],
+  suspect:["Это не я!","Я всё расскажу!","Подождите!","Я просто проходил мимо.","Не надо в камеру!"],
+  inmate:["Тихо тут…","Когда обед?","Я больше не буду."],
+  iqOpen:["Это не я, клянусь!","Я просто проходил мимо.","У вас ничего на меня нет.","Давайте поговорим спокойно."],
+  iqScare:["Ладно, ладно, я скажу!","Только не кричите…","Хорошо, это был я."],
+  iqTalk:["Спасибо, что выслушали.","Я расскажу, как всё было.","Вы добры… вот правда."]
+};
+
+const IQ_CLUES = [
+  "Заметка: избегает взгляда, руки дрожат.",
+  "Заметка: путается в показаниях.",
+  "Заметка: похоже, готов говорить за доброе слово.",
+  "Заметка: держится вызывающе, но волнуется.",
+  "Заметка: в деле есть улика с места."
+];
+
+const SPAWN_MIN=10, SPAWN_MAX=14, QUEUE_MAX=3, AUTO_SEND=14;

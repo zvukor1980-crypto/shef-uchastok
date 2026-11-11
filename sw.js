@@ -1,6 +1,6 @@
-/* policeuch-v5: network-first for HTML/JS/CSS so iOS never mixes a new page with a stale stylesheet.
+/* policeuch-v6: network-first for HTML/JS/CSS so iOS never mixes a new page with a stale stylesheet.
    Images/fonts are cache-first. All previous caches are deleted on activate. */
-const CACHE='policeuch-v5';
+const CACHE='policeuch-v6';
 const SHELL=/\.(?:js|css|webmanifest)$/i;
 
 self.addEventListener('install', e=>{

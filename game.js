@@ -1,4 +1,4 @@
-/* Шеф полиции: Участок v3 */
+/* Шеф полиции: Участок v6 */
 const SAVE_KEY="shef-uchastok-v3", SAVE_OLD="shef-uchastok-v2";
 let S, TAB="station", dirty=false, lastTs=0, acc=0, lastView=0;
 const $ = s=>document.querySelector(s);
@@ -100,11 +100,13 @@ function load(){
         if(hid && S.heroes[hid] && S.heroes[hid].owned) S.heroes[hid].assigned=id;
         else if(hid && (!S.heroes[hid]||!S.heroes[hid].owned)) S.rooms[id].hero=null;
       }
+      S.questFlags=S.questFlags||{};
+      if(S.questIdx==null) S.questIdx=0;
       return true;
     }
   }catch(e){console.warn(e);}
   S=defaultState();
-  S.actors=[]; S.car={state:"idle",t:0}; S.guideStep=0; S.guideDone=false;
+  S.actors=[]; S.car={state:"idle",t:0}; S.guideStep=0; S.guideDone=false; S.questIdx=0; S.questFlags={};
   S.docket=[]; S.achieves={}; S.combo=0;
   return false;
 }
@@ -139,12 +141,15 @@ function similarText(a,b){
   return hit>=3;
 }
 function toastRedundant(msg){
-  if(!S || S.guideDone) return false;
-  const st=GUIDE_STEPS[S.guideStep];
-  if(!st) return false;
-  if(/посадите|села за стол/i.test(msg) && (st.id==="seat"||st.id==="wow"||st.id==="det")) return true;
-  if(/обучение закончено|вы — шеф/i.test(msg) && (st.id==="done"||S.guideStep>=GUIDE_STEPS.length-1)) return true;
-  return similarText(st.text, msg);
+  if(!S) return false;
+  const st=typeof chainStep==="function"?chainStep():null;
+  const tip=($("#nikatiptxt")||{}).textContent||"";
+  if(st){
+    if(/посадите|села за стол/i.test(msg) && /seat-/.test(st.id||"")) return true;
+    if(similarText(st.nika||st.title||"", msg)) return true;
+  }
+  if(tip && similarText(tip, msg)) return true;
+  return false;
 }
 function toastStale(msg){
   if(/посадите/i.test(msg) && S && S.rooms && S.rooms.detective && S.rooms.detective.hero) return true;
@@ -161,10 +166,9 @@ function dropToasts(pred){
 }
 function placeToasts(){
   const box=$("#toasts"); if(!box) return;
-  const coach=$("#coach");
-  const coachOn=coach && !coach.classList.contains("hidden") && !coach.classList.contains("coach-top")
-    && (!$("#modal") || $("#modal").classList.contains("hidden"));
-  box.classList.toggle("mid", !!coachOn);
+  const tip=$("#nikatip");
+  const tipOn=tip && !tip.classList.contains("hidden");
+  box.classList.toggle("mid", !!tipOn);
 }
 function pumpToast(){
   if(TQ.shown) return;
@@ -424,6 +428,7 @@ function tick(dt){
       if(p>=1){
         S.car.state="idle"; S.car.t=0; S.car.x=G.ax; S.car.y=G.ay;
         S.rooms.garage.out++; AU.ok();
+        guideEvent("carback");
       }
     }
   }else { S.car.x=G.ax; S.car.y=G.ay; }
@@ -641,6 +646,7 @@ function upgradeChief(){
   else toast("Кабинет шефа — уровень "+S.chiefLv);
   closeModal();
   guideEvent("upgrade");
+  guideEvent("upchief");
 }
 function showCinema(title, text){
   const c=$("#cinema");
@@ -792,6 +798,7 @@ function renderBubbles(){
   else{
     if(rr.reception.out>0) add("reception","ДОКУМЕНТЫ<small>отправить детективу</small>","gold","collect","reception","bub-docs");
     if(rr.detective.out>0) add("detective","ОРДЕР<small>активировать</small>","gold","collect","detective","bub-warrant");
+    if(!rr.reception.hero) add("reception","ПОСАДИТЬ ДЕЖУРНУЮ<small>за стол</small>","gold","open","reception","bub-seat-rec");
     if(!rr.detective.hero) add("detective","ПОСАДИТЬ ДЕТЕКТИВА<small>за стол</small>","gold","open","detective","bub-seat-det");
     else if(rr.detective.in>0 && !rr.detective.work) add("detective","РАССЛЕДОВАТЬ","gold","open","detective","bub-invest");
     if(rr.garage.in>0 && !rr.garage.work && S.car.state==="idle") add("garage","ПАТРУЛЬ<small>отправить машину</small>","gold","startpatrol","garage","bub-patrol");
@@ -821,6 +828,7 @@ function setTab(t){
     else if(t==="tasks") renderTasks();
     else if(t==="shop"){ addStat("shopVisits",1); renderShop(); }
   }
+  guideEvent("tab:"+t);
   updateQuest();
 }
 function renderShop(){
@@ -988,13 +996,15 @@ function assignHero(arg){
   AU.appear();
   dropToasts(m=>/посадите/i.test(m));
   if(S.guideDone) toast(HEROES[id].name+" села за стол: "+ROOMS[room].name);
-  if(!S.guideDone && room==="detective" && S.rooms.detective.in>0){
+  const qid=(typeof chainStep==="function" && chainStep()||{}).id;
+  if((!S.guideDone || qid==="warrant" || qid==="seat-det") && room==="detective" && S.rooms.detective.in>0){
     if(!S.rooms.detective.work) startWork("detective");
     S.rooms.detective.prog=1; finishWork("detective");
   }
   const just=S.actors.find(x=>x.hid===id);
   if(just){ say(just, pick(SAY_START), 4); just.quiet=6; }
   guideEvent("assign");
+  guideEvent("assign:"+room);
   renderActors();
   setTimeout(()=>scrollToRoom(room), 50);
 }
@@ -1085,11 +1095,12 @@ function openRoom(id){
   }
   if(id==="interrog" && S.rooms.interrog.in>0 && S.guideDone){ closeModal(); openInterrog(); return; }
   guideEvent("open:"+id);
-  if(!S.guideDone && id==="reception" && S.rooms.reception.in>0){
+  const qid2=(typeof chainStep==="function" && chainStep()||{}).id;
+  if(qid2==="client" && id==="reception" && S.rooms.reception.in>0){
     if(!S.rooms.reception.work) startWork("reception");
     S.rooms.reception.prog=1; finishWork("reception");
     closeModal();
-    toast("Заявление принято!");
+    guideEvent("open:reception");
     return;
   }
   renderRoomModal(id);
@@ -1211,7 +1222,7 @@ function onAct(act,arg){
     case "tocell": {
       const cap=roomCap("cells",S);
       const n=Math.min(S.rooms.interrog.out, cap-S.rooms.cells.in);
-      S.rooms.interrog.out-=n; S.rooms.cells.in+=n; mark(); closeModal(); break;
+      S.rooms.interrog.out-=n; S.rooms.cells.in+=n; mark(); closeModal(); guideEvent("tocell"); break;
     }
     case "suggest": doSuggest(); break;
     case "order": doOrder(arg); break;
@@ -1222,197 +1233,325 @@ function onAct(act,arg){
       hud(); mark(); break;
     case "guidenext": guideNext(); break;
     case "guideskip": finishGuide(); break;
+    case "questhelp": followQuest(); break;
+    case "closetip": closeNikaTip(); break;
     case "cinemaclose": closeCinema(); break;
     case "vip": collectVip(); break;
     case "questbar": followQuest(); break;
   }
 }
 
-/* ===== guided tutorial + quest bar ===== */
-const GUIDE_STEPS=[
-  {id:"hi", text:"Привет! Я Ника, помощница шефа. Сейчас вместе проведём первое дело — я буду показывать, куда нажать.", btn:"Начать!", wait:"click"},
-  {id:"wait", text:"Смотрите: к нам уже идёт житель с заявлением!", btn:null, wait:"citizen"},
-  {id:"rec", text:"Нажмите на ПРИЁМНУЮ, чтобы принять заявление.", sel:'[data-testid="room-reception"]', wait:"open:reception"},
-  {id:"docs", text:"Документы готовы! Нажмите на золотую табличку «Документы».", sel:'[data-testid="bub-docs"]', wait:"collect:reception"},
-  {id:"det", text:"Нажмите табличку «Посадить детектива» — и выберите, кто сядет за стол.", sel:'[data-testid="bub-seat-det"], [data-testid="room-detective"]', wait:"open:detective"},
-  {id:"seat", text:"Выберите сотрудницу и нажмите «Посадить за стол». Она сразу появится в кабинете!", sel:'[data-testid="seat-marina"], [data-act="assign"]', wait:"assign"},
-  {id:"wow", text:"Вот она за столом! Нажмите золотую табличку, чтобы продолжить дело.", sel:'.abub', wait:"collect:detective"},
-  {id:"pat", text:"Отправьте патруль — нажмите золотую табличку «Патруль».", sel:'[data-testid="bub-patrol"]', wait:"patrol"},
-  {id:"sus", text:"Машина привезла подозреваемого. Нажмите табличку, чтобы вести его на допрос.", sel:'[data-testid="bub-suspect"]', wait:"collect:garage"},
-  {id:"iq", text:"Нажмите «Допрос провести». Три раунда: запугать, уговорить или улики. Поймайте зелёную зону!", sel:'[data-testid="bub-iq"], [data-testid="start-iq"]', wait:"iqdone"},
-  {id:"up", text:"Дело закрыто! Нажмите на камеры или приёмную и улучшите комнату — кнопка «Улучшить».", sel:'[data-testid="room-cells"], [data-testid="up-room"]', wait:"upgrade"},
-  {id:"done", text:"Теперь вы шеф! Подсказка «Следующее дело» всегда сверху. В магазине всё бесплатно. Удачи!", btn:"Вперёд, к службе!", wait:"click"}
+/* ===== v6 step-by-step quests ===== */
+const QUEST_CHAIN = [
+  {id:"seat-rec", title:"Посади дежурную за стол",
+    nika:"Привет! Я Ника. Делаем всё по шагам. Нажмите на ПРИЁМНУЮ и посадите Анну за стол.",
+    sel:'[data-testid="bub-seat-rec"], [data-testid="room-reception"], [data-testid="seat-anna"]',
+    room:"reception", wait:"assign:reception",
+    done:()=>!!S.rooms.reception.hero,
+    enter(){ if(!S.heroes.anna.owned) giveHero("anna"); },
+    praise:"Анна на месте! Теперь можно принимать заявления.", reward:200},
+  {id:"client", title:"Прими первое заявление",
+    nika:"К нам идёт житель. Нажмите на ПРИЁМНУЮ, чтобы принять заявление.",
+    sel:'[data-testid="room-reception"]',
+    room:"reception", wait:"open:reception|collect:reception|start:reception",
+    done:()=> (S.stats.docs||0)>0 || S.rooms.reception.out>0,
+    enter(){ if(S.rooms.reception.in<=0) spawnCitizen(true); scrollToRoom("reception"); },
+    praise:"Заявление принято! Документы готовы.", reward:200},
+  {id:"docs", title:"Отправь документы детективу",
+    nika:"Нажмите золотую табличку «Документы», чтобы передать дело детективу.",
+    sel:'[data-testid="bub-docs"], [data-testid="collect-room"]',
+    room:"reception", wait:"collect:reception",
+    done:()=> (S.rooms.detective.in>0 || (S.stats.docs||0)>0) && S.rooms.reception.out<=0,
+    praise:"Документы у детектива. Теперь нужен сыщик!", reward:200},
+  {id:"seat-det", title:"Посади детектива за стол",
+    nika:"Нажмите на кабинет детектива и посадите Марину за стол — она сразу появится.",
+    sel:'[data-testid="bub-seat-det"], [data-testid="room-detective"], [data-testid="seat-marina"]',
+    room:"detective", wait:"assign:detective|assign",
+    done:()=>!!S.rooms.detective.hero,
+    enter(){ if(!S.heroes.marina.owned) giveHero("marina"); },
+    praise:"Марина за столом и сразу берётся за дело!", reward:300},
+  {id:"warrant", title:"Активируй ордер",
+    nika:"Нажмите золотую табличку «Ордер», чтобы отправить дело в патруль.",
+    sel:'[data-testid="bub-warrant"], [data-testid="collect-room"], [data-testid="room-detective"]',
+    room:"detective", wait:"collect:detective",
+    done:()=> S.rooms.garage.in>0 || ((S.stats.warrants||0)>0 && S.rooms.detective.out<=0),
+    enter(){
+      if(S.rooms.detective.in>0){
+        if(!S.rooms.detective.work) startWork("detective");
+        S.rooms.detective.prog=1; finishWork("detective");
+      }
+    },
+    praise:"Ордер готов! Пора отправить патруль.", reward:200},
+  {id:"patrol", title:"Отправь патруль",
+    nika:"Нажмите табличку «Патруль» — машина выедет за подозреваемым.",
+    sel:'[data-testid="bub-patrol"], [data-testid="patrol"], [data-testid="room-garage"]',
+    room:"garage", wait:"patrol",
+    done:()=> (S.stats.patrols||0)>0 || S.car.state!=="idle" || S.rooms.garage.out>0,
+    praise:"Патруль выехал. Подождём, когда машина вернётся.", reward:200},
+  {id:"wait-car", title:"Дождись патруль",
+    nika:"Машина уже в пути. Как вернётся — нажмите табличку «Подозреваемый».",
+    sel:'[data-testid="bub-suspect"], [data-testid="room-garage"]',
+    room:"garage", wait:"carback|collect:garage",
+    done:()=> S.rooms.garage.out>0 || S.rooms.interrog.in>0,
+    praise:"Патруль вернулся с подозреваемым!", reward:100},
+  {id:"suspect", title:"Ведите подозреваемого на допрос",
+    nika:"Нажмите табличку «Подозреваемый», чтобы отвести его в допросную.",
+    sel:'[data-testid="bub-suspect"], [data-testid="collect-room"]',
+    room:"garage", wait:"collect:garage",
+    done:()=> S.rooms.interrog.in>0,
+    praise:"Подозреваемый в допросной. Начинаем допрос!", reward:200},
+  {id:"iq", title:"Проведи допрос",
+    nika:"Нажмите «Допрос провести». Три раунда: запугать, уговорить или улики. Поймайте зелёную зону!",
+    sel:'[data-testid="bub-iq"], [data-testid="start-iq"]',
+    room:"interrog", wait:"iqdone",
+    done:()=> (S.stats.interrogs||0)>0,
+    praise:"Допрос удался! Теперь отправьте его в камеру.", reward:400},
+  {id:"cell", title:"Отправь в камеру",
+    nika:"Нажмите табличку «В камеру», чтобы разместить задержанного.",
+    sel:'[data-testid="bub-cell"], [data-testid="room-interrog"]',
+    room:"interrog", wait:"tocell",
+    done:()=> (S.rooms.cells.in||0)>0,
+    praise:"Камеры работают и приносят доход. Заберите деньги!", reward:200},
+  {id:"income", title:"Забери деньги в камерах",
+    nika:"Нажмите табличку в камерах (или саму комнату) и заберите доход.",
+    sel:'[data-testid="bub-cash"], [data-testid="collect-cash"], [data-testid="room-cells"]',
+    room:"cells", wait:"collect:cells",
+    done:()=> !!(S.questFlags&&S.questFlags.income) || (S.stats.cashGot||0)>0,
+    enter(){ if((S.rooms.cells.pending||0)<40) S.rooms.cells.pending=(S.rooms.cells.pending||0)+80; },
+    praise:"Отличный доход! Давайте улучшим комнату.", reward:300},
+  {id:"upgrade", title:"Улучши комнату",
+    nika:"Откройте любую комнату и нажмите «Улучшить». Деньги можно взять в магазине бесплатно.",
+    sel:'[data-testid="up-room"], [data-testid="room-cells"], [data-testid="room-reception"]',
+    room:"cells", wait:"upgrade",
+    done:()=> (S.stats.upgrades||0)>0 || ROOM_ORDER.some(id=>S.rooms[id].level>1),
+    praise:"Комната стала лучше! Загляните в магазин — там всё бесплатно.", reward:300},
+  {id:"shop", title:"Открой бесплатный магазин",
+    nika:"Нажмите зелёную вкладку «Магазин» внизу. Всё бесплатно, без ограничений.",
+    sel:'[data-testid="tab-shop"]',
+    wait:"tab:shop",
+    done:()=> (S.stats.shopVisits||0)>0,
+    praise:"Берите всё, что нужно! Остался последний шаг обучения.", reward:200},
+  {id:"unlock", title:"Открой новую комнату",
+    nika:"Листайте участок вниз, откройте кабинет шефа и нажмите «Повысить» — откроется новая комната.",
+    sel:'[data-testid="room-chief"], [data-testid="up-chief"]',
+    room:"chief", wait:"upchief|upgrade",
+    done:()=> S.chiefLv>=2,
+    praise:"Новая комната открыта! Листайте вниз. Дальше я буду подсказывать по одному заданию.", reward:500}
 ];
 
-function showGuide(){
-  const box=$("#coach"), txt=$("#coachtxt"), btn=$("#coachbtn");
-  if(!box) return;
-  if(S.guideDone || S.guideStep>=GUIDE_STEPS.length){
-    box.classList.add("hidden"); placePointer(); return;
+function chainStep(){
+  if(!S || S.guideDone) return null;
+  const i=S.questIdx||0;
+  return QUEST_CHAIN[i]||null;
+}
+function syncQuestFromState(){
+  if(!S) return;
+  let idx=QUEST_CHAIN.length;
+  for(let i=0;i<QUEST_CHAIN.length;i++){
+    try{ if(!QUEST_CHAIN[i].done()){ idx=i; break; } }catch(e){ idx=i; break; }
   }
-  const st=GUIDE_STEPS[S.guideStep];
+  S.questIdx=idx;
+  S.guideDone = idx>=QUEST_CHAIN.length;
+  if(S.guideDone) S.tut=99;
+}
+function ongoingQuest(){
+  const rr=S.rooms;
+  if(S.riot) return {title:"Подави бунт в камерах", nika:"В камерах бунт! Нажмите красную табличку и подавите его.", sel:'[data-testid="bub-riot"], [data-testid="room-cells"]', room:"cells"};
+  if(!rr.reception.hero) return {title:"Посади дежурную за стол", nika:"В приёмной пустой стол. Откройте комнату и посадите сотрудницу.", sel:'[data-testid="bub-seat-rec"], [data-testid="room-reception"]', room:"reception"};
+  if(!rr.detective.hero) return {title:"Посади детектива за стол", nika:"Детективу нужен сыщик. Откройте кабинет и посадите героиню.", sel:'[data-testid="bub-seat-det"], [data-testid="room-detective"]', room:"detective"};
+  if(rr.interrog.in>0) return {title:"Проведи допрос", nika:"Подозреваемый ждёт. Нажмите «Допрос провести».", sel:'[data-testid="bub-iq"], [data-testid="start-iq"]', room:"interrog"};
+  if(rr.interrog.out>0) return {title:"Отправь в камеру", nika:"Допрос окончен. Нажмите «В камеру».", sel:'[data-testid="bub-cell"]', room:"interrog"};
+  if(rr.garage.out>0) return {title:"Ведите подозреваемого на допрос", nika:"Патруль вернулся. Нажмите табличку «Подозреваемый».", sel:'[data-testid="bub-suspect"]', room:"garage"};
+  if(rr.garage.in>0 && S.car.state==="idle") return {title:"Отправь патруль", nika:"Ордер готов. Нажмите табличку «Патруль».", sel:'[data-testid="bub-patrol"]', room:"garage"};
+  if(rr.detective.out>0) return {title:"Активируй ордер", nika:"Нажмите золотую табличку «Ордер».", sel:'[data-testid="bub-warrant"]', room:"detective"};
+  if(rr.reception.out>0) return {title:"Отправь документы детективу", nika:"Нажмите табличку «Документы».", sel:'[data-testid="bub-docs"]', room:"reception"};
+  if((rr.cells.pending||0)>=20) return {title:"Забери деньги в камерах", nika:"В камерах накопился доход. Заберите его.", sel:'[data-testid="bub-cash"], [data-testid="room-cells"]', room:"cells"};
+  if(S.actors.some(a=>a.kind==="vip")) return {title:"Прими VIP-гостя", nika:"VIP в приёмной — нажмите на гостя.", sel:'[data-testid="bub-vip"]', room:"reception"};
+  if(rr.reception.in>0) return {title:"Дождись окончания приёма", nika:"В приёмной оформляют заявление. Можно открыть комнату и ускорить.", sel:'[data-testid="room-reception"]', room:"reception"};
+  if(S.chiefLv<6) return {title:"Открой новую комнату", nika:"Улучшите кабинет шефа, чтобы открыть новые комнаты внизу участка.", sel:'[data-testid="room-chief"], [data-testid="up-chief"]', room:"chief"};
+  return {title:"Жди жителя или улучши участок", nika:"Следующий житель скоро придёт. А в магазине всё бесплатно.", sel:null};
+}
+function currentQuest(){
+  return chainStep() || ongoingQuest();
+}
+function questInfo(){
+  const q=currentQuest()||{};
+  return {text:q.title||"", sel:q.sel, room:q.room, nika:q.nika, id:q.id, title:q.title};
+}
+let _questLock=false;
+function completeQuest(force){
+  if(_questLock) return;
+  const st=chainStep();
+  if(!st){ updateQuest(); return; }
+  try{ if(!force && st.done && !st.done()) return; }catch(e){}
+  _questLock=true;
+  if(st.reward){
+    addRes("cash", st.reward);
+    const hs=document.querySelector("#questbar")||document.body;
+    const r=hs.getBoundingClientRect();
+    coinBurst(r.left+r.width/2, r.bottom+8, 8);
+    AU.star();
+  }
+  if(st.praise) showNikaTip(st.praise+(st.reward?(" +"+fmt(st.reward)+" ₽"):""));
+  syncQuestFromState();
+  if(S.guideDone){
+    const sk=$("#questskip"); if(sk) sk.classList.add("hidden");
+    S._nextSp=SPAWN_MIN+Math.random()*(SPAWN_MAX-SPAWN_MIN);
+  }else{
+    enterQuest();
+  }
+  updateQuest();
+  mark();
+  setTimeout(()=>{ _questLock=false; }, 350);
+}
+function enterQuest(){
+  const st=chainStep();
+  if(!st) return;
+  try{ if(st.enter) st.enter(); }catch(e){ console.warn(e); }
+  setTimeout(()=>{ followQuest(true); if(st.nika) showNikaTip(st.nika); }, 200);
+}
+function showNikaTip(text){
+  const box=$("#nikatip"), p=$("#nikatiptxt");
+  if(!box||!p||!text) return;
+  p.textContent=text;
   box.classList.remove("hidden");
   box.style.display="";
-  txt.textContent=st.text;
-  if(st.btn){ btn.hidden=false; btn.textContent=st.btn; }
-  else btn.hidden=true;
+  if(S._tipTimer) clearTimeout(S._tipTimer);
+  S._tipTimer=setTimeout(()=>closeNikaTip(), 4200);
+  placeToasts();
+}
+function closeNikaTip(){
+  const box=$("#nikatip");
+  if(box){ box.classList.add("hidden"); box.style.display=""; }
+  if(S && S._tipTimer){ clearTimeout(S._tipTimer); S._tipTimer=0; }
+  placeToasts();
+}
+function showGuide(){ // kept name: start or refresh the current step
+  const box=$("#coach"); if(box){ box.classList.add("hidden"); box.style.display=""; }
+  syncQuestFromState();
+  const sk=$("#questskip");
+  if(sk) sk.classList.toggle("hidden", !!S.guideDone);
+  if(!S.guideDone) enterQuest();
   updateQuest();
 }
-function guideNext(){
-  if(S.guideDone) return;
-  const st=GUIDE_STEPS[S.guideStep];
-  if(st && st.wait==="click"){
-    S.guideStep++;
-    onEnterGuide();
-    showGuide();
-    mark();
-  }
-}
-function onEnterGuide(){
-  const st=GUIDE_STEPS[S.guideStep];
-  if(!st){ finishGuide(); return; }
-  if(st.id==="wait"){
-    spawnCitizen(true);
-    // auto advance when citizen arrives
-    setTimeout(()=>{ if(S.guideStep===1){ S.guideStep=2; showGuide(); } }, 2500);
-  }
-  if(st.id==="seat"){
-    if(!S.heroes.marina.owned){ giveHero("marina"); }
-    // keep detective modal open if possible
-    if($("#modal").classList.contains("hidden")) openRoom("detective");
-    else renderRoomModal("detective");
-  }
-  if(st.id==="done"){ /* wait for click */ }
-}
+function guideNext(){ /* intro clicks no longer used */ }
+function onEnterGuide(){ enterQuest(); }
 function guideEvent(ev){
-  if(S.guideDone) { updateQuest(); return; }
-  const st=GUIDE_STEPS[S.guideStep];
-  if(!st) return;
+  if(ev==="collect:cells"){ S.questFlags=S.questFlags||{}; S.questFlags.income=true; }
+  const st=chainStep();
+  if(!st){ updateQuest(); return; }
   const waits=(st.wait||"").split("|");
   if(waits.includes(ev)){
-    S.guideStep++;
-    if(S.guideStep>=GUIDE_STEPS.length){ finishGuide(); return; }
-    onEnterGuide();
-    showGuide();
-    mark();
+    // give state a tick, then complete if done (or if the wait itself is the completion)
+    setTimeout(()=>{
+      try{
+        if(!chainStep() || chainStep().id!==st.id) return;
+        if(!st.done || st.done() || waits.includes(ev)) completeQuest(true);
+      }catch(e){ completeQuest(); }
+    }, 30);
+    return;
   }
+  updateQuest();
 }
 function finishGuide(){
-  S.guideDone=true; S.guideStep=99; S.tut=99;
-  const box=$("#coach");
-  if(box){ box.classList.add("hidden"); box.style.display=""; }
+  S.guideDone=true; S.questIdx=QUEST_CHAIN.length; S.guideStep=99; S.tut=99;
+  const box=$("#coach"); if(box){ box.classList.add("hidden"); box.style.display=""; }
   const ptr=$("#pointer"); if(ptr) ptr.classList.add("hidden");
+  const ring=$("#pulsering"); if(ring) ring.classList.add("hidden");
+  const sk=$("#questskip"); if(sk) sk.classList.add("hidden");
+  closeNikaTip();
+  S._nextSp=SPAWN_MIN+Math.random()*(SPAWN_MAX-SPAWN_MIN);
   placePointer();
   updateQuest();
+  showNikaTip("Обучение пропущено. Нажмите «?» — я всегда подскажу, что делать дальше.");
   mark();
 }
 window.__skipGuide=finishGuide;
 
-function questInfo(){
-  const rr=S.rooms;
-  if(!S.guideDone && S.guideStep<GUIDE_STEPS.length){
-    const st=GUIDE_STEPS[S.guideStep];
-    const text=S.guideStep===0?"Слушайте Нику — она подскажет, куда нажать.":st.text;
-    return {text, sel:st.sel};
-  }
-  if(S.riot) return {text:"Подавите бунт в камерах — нажмите красную табличку.", sel:'[data-testid="bub-riot"], [data-testid="room-cells"]'};
-  if(rr.interrog.in>0) return {text:"Проведите допрос — нажмите красную табличку.", sel:'[data-testid="bub-iq"]'};
-  if(rr.garage.out>0) return {text:"Ведите подозреваемого на допрос.", sel:'[data-testid="bub-suspect"]'};
-  if(rr.garage.in>0 && S.car.state==="idle") return {text:"Отправьте патруль за подозреваемым.", sel:'[data-testid="bub-patrol"]'};
-  if(rr.detective.out>0) return {text:"Активируйте ордер — нажмите золотую табличку.", sel:'[data-testid="bub-warrant"]'};
-  if(rr.detective.in>0) return {text:"Детектив расследует дело. Можно ускорить в кабинете.", sel:'[data-testid="room-detective"]'};
-  if(rr.reception.out>0) return {text:"Отправьте документы детективу — нажмите табличку.", sel:'[data-testid="bub-docs"]'};
-  if(!rr.detective.hero) return {text:"Посадите детектива за стол — откройте его кабинет.", sel:'[data-testid="room-detective"]'};
-  if(rr.cells.pending>=40) return {text:"Заберите деньги в камерах.", sel:'[data-testid="bub-cash"]'};
-  if(S.actors.some(a=>a.kind==="vip")) return {text:"VIP-гость в приёмной — нажмите на гостя.", sel:'[data-testid="bub-vip"]'};
-  if(rr.reception.in>0) return {text:"В приёмной принимают заявление.", sel:'[data-testid="room-reception"]'};
-  return {text:"Ждите жителя или улучшите участок. В магазине всё бесплатно.", sel:null};
-}
 function updateQuest(){
   const q=questInfo();
-  const t=$("#questtxt"); if(t) t.textContent=q.text;
+  const t=$("#questtxt"); if(t) t.textContent=q.title||q.text||"";
+  const step=$("#queststep");
+  if(step){
+    if(!S.guideDone && (S.questIdx||0)<QUEST_CHAIN.length){
+      step.textContent="Шаг "+((S.questIdx||0)+1)+" из "+QUEST_CHAIN.length;
+    }else{
+      step.textContent="Задание";
+    }
+  }
+  const sk=$("#questskip");
+  if(sk) sk.classList.toggle("hidden", !!S.guideDone);
   S._questSel=q.sel;
+  S._questRoom=q.room;
+  // auto-advance if the current chain step is already done
+  const st=chainStep();
+  if(st && st.done && !_questLock){
+    try{ if(st.done()){ completeQuest(); return; } }catch(e){}
+  }
   placePointer();
 }
-function followQuest(){
-  if(!S.guideDone && S.guideStep<GUIDE_STEPS.length) return;
+function followQuest(silent){
   const q=questInfo();
-  if(q.sel){
-    const el=document.querySelector(q.sel);
-    if(el){ el.scrollIntoView({block:"center",behavior:"smooth"}); }
+  if(TAB!=="station" && q.sel && !/tab-/.test(q.sel||"")) setTab("station");
+  if(q.room) scrollToRoom(q.room);
+  else if(q.sel){
+    const el=document.querySelector(q.sel.split(",")[0].trim());
+    if(el) el.scrollIntoView({block:"center", behavior:"smooth"});
   }
+  if(!silent && q.nika) showNikaTip(q.nika);
+  setTimeout(()=>placePointer(), 280);
 }
 function placePointer(){
-  const p=$("#pointer"); if(!p) return;
-  if(TAB!=="station" || !$("#iq").classList.contains("hidden") || !$("#cinema").classList.contains("hidden")){
-    p.classList.add("hidden");
-    const cch=$("#coach"); if(cch && TAB!=="station") cch.classList.add("hidden");
-    return;
+  const p=$("#pointer"), ring=$("#pulsering");
+  const hide=()=>{ if(p) p.classList.add("hidden"); if(ring) ring.classList.add("hidden"); };
+  if(!p) return;
+  if(!$("#iq").classList.contains("hidden") || !$("#cinema").classList.contains("hidden")){
+    hide(); return;
   }
-  if(!S.guideDone && S.guideStep<GUIDE_STEPS.length){ const cch=$("#coach"); if(cch) cch.classList.remove("hidden"); }
-  const sel=S._questSel;
-  if(!sel){ p.classList.add("hidden"); layoutCoach(null); return; }
-  // prefer visible element
+  const box=$("#coach"); if(box) box.classList.add("hidden");
+  const sel=S && S._questSel;
+  if(!sel){ hide(); return; }
   let el=null;
   for(const s of sel.split(",")){
     const n=document.querySelector(s.trim());
-    if(n){
-      const r=n.getBoundingClientRect();
-      const vis=r.width>0 && r.height>0 && r.bottom>80 && r.top<innerHeight-40 && getComputedStyle(n).display!=="none";
-      if(vis){ el=n; break; }
-      if(!el) el=n;
+    if(!n) continue;
+    const r=n.getBoundingClientRect();
+    const vis=r.width>2 && r.height>2 && r.bottom>60 && r.top<innerHeight-50 && getComputedStyle(n).display!=="none" && getComputedStyle(n).visibility!=="hidden";
+    if(vis){ el=n; break; }
+    if(!el) el=n;
+  }
+  if(!el){ hide(); return; }
+  const r=el.getBoundingClientRect();
+  if(r.width<2){ hide(); return; }
+  // if target is off-screen on the station, nudge scroll (throttled)
+  if(TAB==="station" && (r.top<80 || r.bottom>innerHeight-70) && S._questRoom){
+    if(!S._scrollNudge || Date.now()-S._scrollNudge>1200){
+      S._scrollNudge=Date.now();
+      scrollToRoom(S._questRoom);
     }
   }
-  if(!el){ p.classList.add("hidden"); layoutCoach(null); return; }
-  const r=el.getBoundingClientRect();
-  if(r.width<2){ p.classList.add("hidden"); layoutCoach(null); return; }
   p.classList.remove("hidden");
   p.style.left=(r.left+r.width/2)+"px";
-  p.style.top=(r.bottom-8)+"px";
-  layoutCoach(r);
+  p.style.top=(r.bottom-6)+"px";
+  if(ring){
+    const pad=10;
+    ring.classList.remove("hidden");
+    ring.style.left=(r.left-pad)+"px";
+    ring.style.top=(r.top-pad)+"px";
+    ring.style.width=(r.width+pad*2)+"px";
+    ring.style.height=(r.height+pad*2)+"px";
+  }
 }
-function layoutCoach(targetRect){
-  const box=$("#coach"); if(!box || box.classList.contains("hidden")) { placeToasts(); return; }
-  const modal=$("#modal");
-  if(modal && !modal.classList.contains("hidden")) { placeToasts(); return; }
-  if(!targetRect){
-    box.classList.remove("coach-top");
-    box.style.top=""; box.style.bottom=""; box.style.left=""; box.style.right=""; box.style.maxWidth="";
-    placeToasts(); return;
-  }
-  const midY=(targetRect.top+targetRect.bottom)/2;
-  const lower=targetRect && midY > innerHeight*0.52;
-  box.classList.toggle("coach-top", !!lower);
-  if(lower){
-    const tb=topbar?topbar.getBoundingClientRect().bottom: (80+ (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-t"))||0));
-    box.style.top=(tb+6)+"px";
-    box.style.bottom="auto";
-  }else{
-    box.style.top="";
-    box.style.bottom="";
-  }
-  // if still overlapping the target, flip side
-  const cr=box.getBoundingClientRect();
-  if(targetRect && !(cr.right<targetRect.left-8 || cr.left>targetRect.right+8 || cr.bottom<targetRect.top-8 || cr.top>targetRect.bottom+8)){
-    // overlap remains: push coach to the opposite horizontal side
-    const targetLeft=targetRect.left+targetRect.width/2 < innerWidth/2;
-    box.style.left=targetLeft? "auto" : "10px";
-    box.style.right=targetLeft? "10px" : "auto";
-    box.style.maxWidth="70%";
-  }else{
-    box.style.left="";
-    box.style.right="";
-    box.style.maxWidth="";
-  }
-  placeToasts();
-}
+function layoutCoach(){ placeToasts(); }
 
 function frame(ts){
   const dt=Math.min(0.08,(ts-lastTs)/1000||0.016);
   lastTs=ts;
   tick(dt);
   lastView+=dt;
-  if(lastView>0.08){ lastView=0; renderActors(); renderBubbles(); renderLabels(); placePointer(); }
+  if(lastView>0.08){ lastView=0; renderActors(); renderBubbles(); renderLabels(); placePointer();
+    const st=typeof chainStep==="function"&&chainStep(); if(st&&st.done&&!_questLock){ try{ if(st.done()) completeQuest(); }catch(e){} }
+  }
   acc+=dt;
   if(acc>2 && dirty){save();acc=0;}
   requestAnimationFrame(frame);
@@ -1454,7 +1593,7 @@ async function start(){
     onAct(b.dataset.act, b.dataset.arg);
   });
   const qb=$("#questbar");
-  if(qb) qb.addEventListener("click", ev=>{ ev.preventDefault(); followQuest(); });
+  if(qb) qb.addEventListener("click", ev=>{ if(ev.target.closest("[data-act]")) return; ev.preventDefault(); followQuest(); });
 
   const md=$("#modal");
   if(md && !md.dataset.backdrop){
@@ -1471,14 +1610,10 @@ async function start(){
   $("#game").classList.remove("hidden");
   requestAnimationFrame(frame);
 
-  if(!S.guideDone){
-    setTimeout(()=>{ showGuide(); }, 400);
-  }else{
-    setTimeout(()=>{ applyOffline(); maybeDaily(); }, 500);
-    if(!S.seenV3tip){
-      S.seenV3tip=true; mark();
-      setTimeout(()=>toast("Теперь сотрудницу видно за столом: откройте комнату и нажмите «Посадить за стол»."), 800);
-    }
+  syncQuestFromState();
+  setTimeout(()=>{ showGuide(); }, 400);
+  if(S.guideDone){
+    setTimeout(()=>{ applyOffline(); maybeDaily(); }, 600);
   }
 
   document.addEventListener("visibilitychange",()=>{if(document.hidden) save();});
@@ -1486,7 +1621,7 @@ async function start(){
 }
 
 start().catch(e=>{console.error(e);$("#ldtxt").textContent="Ошибка загрузки";});
-window.__GAME=()=>({S,TAB,collectRoom,skipAll,openRoom,setTab,save,upgradeRoom,buy,closeModal,startWork,addRes,openInterrog,iqPick,assignHero,spawnStaff,giveHero,spawnCitizen,guideEvent,showGuide});
+window.__GAME=()=>({S,TAB,collectRoom,skipAll,openRoom,setTab,save,upgradeRoom,buy,closeModal,startWork,addRes,openInterrog,iqPick,assignHero,spawnStaff,giveHero,spawnCitizen,guideEvent,showGuide,followQuest,currentQuest,chainStep,syncQuestFromState,completeQuest,finishGuide,QUEST_CHAIN});
 
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{
@@ -1494,7 +1629,7 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
       if(refreshing) return; refreshing=true; location.reload();
     });
-    navigator.serviceWorker.register("sw.js?v=5").then(reg=>{
+    navigator.serviceWorker.register("sw.js?v=6").then(reg=>{
       setInterval(()=>reg.update(), 60*1000);
       reg.addEventListener("updatefound",()=>{
         const w=reg.installing;

@@ -161,10 +161,10 @@ function defaultState(){
   for(const id of ROOM_ORDER){
     rooms[id]={level:1, hero:null, in:0, out:0, prog:0, work:false, pending:0};
   }
-  rooms.reception.hero="anna";
+  rooms.reception.hero=null;
   const heroes={};
   for(const id of HERO_ORDER) heroes[id]={owned:false, level:1, stars:0, assigned:null, frags:0};
-  heroes.anna={owned:true, level:1, stars:0, assigned:"reception", frags:0};
+  heroes.anna={owned:true, level:1, stars:0, assigned:null, frags:0};
   return {
     cash:2500, gas:40, ammo:25, elec:30, diamonds:150, sat:10,
     chiefLv:1, vip:0, fund:false, pass:false, secondQueue:false,

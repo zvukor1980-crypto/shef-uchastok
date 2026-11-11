@@ -522,7 +522,9 @@ function renderIQ(){
   const sus=cs.suspect||"suspect-m";
   const line = IQ.round===1 ? (cs.line||pick(SAY.iqOpen)) : (IQ.lastLine||pick(SAY.iqOpen));
   $("#iq").classList.remove("hidden");
+  $("#iq").style.display="";
   $("#iq").innerHTML=`
+    <button type="button" class="close" data-act="iqclose" data-testid="iq-close" aria-label="Закрыть">✕</button>
     <div class="iq-bg"><img src="assets/rooms/interrog-bg.webp" alt=""></div>
     <div class="iq-ui">
       ${cs.boss?'<div class="iq-boss">⚠ ОСОБО ОПАСНЫЙ</div>':''}
@@ -613,7 +615,7 @@ function spawnTransferInmate(cs){
   walkTo(a,B.ax,B.ay,18);
   say(a, pick(SAY.inmate), 2);
 }
-function closeIq(){ $("#iq").classList.add("hidden"); $("#iq").innerHTML=""; IQ=null; }
+function closeIq(){ const q=$("#iq"); q.classList.add("hidden"); q.style.display=""; q.innerHTML=""; IQ=null; }
 
 function sendRiot(){
   if(!S.riot) return;
@@ -643,9 +645,10 @@ function upgradeChief(){
 function showCinema(title, text){
   const c=$("#cinema");
   c.classList.remove("hidden");
-  c.innerHTML=`<h2>${title}</h2><p>${text}</p><button class="btn gold" data-act="cinemaclose" data-testid="cinema-ok">Отлично</button>`;
+  c.style.display="";
+  c.innerHTML=`<button type="button" class="close" data-act="cinemaclose" aria-label="Закрыть">✕</button><h2>${title}</h2><p>${text}</p><button class="btn gold" data-act="cinemaclose" data-testid="cinema-ok">Отлично</button>`;
 }
-function closeCinema(){ $("#cinema").classList.add("hidden"); $("#cinema").innerHTML=""; }
+function closeCinema(){ const c=$("#cinema"); c.classList.add("hidden"); c.style.display=""; c.innerHTML=""; }
 
 function applyOffline(){
   const now=Date.now(), last=S.lastSave||now;
@@ -929,7 +932,7 @@ function openHero(id){
   const def=HEROES[id], h=S.heroes[id], rar=RAR[def.rarity];
   if(!h.owned){
     openModal(`<div class="mh">${def.name}</div><div class="ms" style="color:${rar.color}">${rar.name} · ${def.role}</div>
-      <img src="assets/heroes/${id}.webp" alt="" style="width:140px;height:140px;border-radius:16px;margin:8px auto;object-fit:cover">
+      <img class="openhero-spr" src="assets/heroes/${id}.webp" alt="" width="140" height="140" style="width:140px;height:140px;max-height:36vh;border-radius:16px;margin:8px auto;object-fit:cover">
       <div class="ms">${def.blurb}</div>
       <button class="btn wide" data-act="buy" data-arg="h1">Набрать бесплатно</button>
       <button class="btn grey wide" data-act="close">Закрыть</button>`);
@@ -944,7 +947,7 @@ function openHero(id){
   const swatches=OUTFIT_COLORS.map(c=>`<button class="osw ${outfit===c.id?"on":""}" data-c="${c.id}" data-act="outfit" data-arg="${id}|${c.id}" title="${c.name}" style="background:${c.css}"></button>`).join("");
   openModal(`<div class="mh">${def.name}</div>
     <div class="ms" style="color:${rar.color}">${rar.name} · ${def.role} · ур. ${h.level}</div>
-    <img src="${heroSprite(id,outfit)}" alt="" style="width:120px;height:auto;margin:8px auto">
+    <img class="openhero-spr" src="${heroSprite(id,outfit)}" alt="" width="120">
     <div class="ms">${def.blurb}</div>
     <div class="sec">Цвет формы — бесплатно</div>
     <div class="outfits">${swatches}</div>
@@ -1179,8 +1182,8 @@ function collectVip(){
   AU.ok(); confetti();
 }
 
-function openModal(html){const m=$("#modal");m.classList.remove("hidden");m.innerHTML=`<div class="box">${html}<button class="close" data-act="close" aria-label="Закрыть">✕</button></div>`; placePointer(); }
-function closeModal(){$("#modal").classList.add("hidden");$("#modal").innerHTML=""; placePointer(); }
+function openModal(html){const m=$("#modal");m.classList.remove("hidden");m.style.display="";m.innerHTML=`<div class="box">${html}<button type="button" class="close" data-act="close" aria-label="Закрыть">✕</button></div>`; placePointer(); }
+function closeModal(){const m=$("#modal");m.classList.add("hidden");m.style.display="";m.innerHTML=""; placePointer(); }
 
 function onAct(act,arg){
   AU.init(); if(AU.ctx&&AU.ctx.state==="suspended") AU.ctx.resume();
@@ -1218,6 +1221,7 @@ function onAct(act,arg){
       if(S.muted) AU.stopMusic(); else { AU.init(); AU.startMusic(); }
       hud(); mark(); break;
     case "guidenext": guideNext(); break;
+    case "guideskip": finishGuide(); break;
     case "cinemaclose": closeCinema(); break;
     case "vip": collectVip(); break;
     case "questbar": followQuest(); break;
@@ -1248,6 +1252,7 @@ function showGuide(){
   }
   const st=GUIDE_STEPS[S.guideStep];
   box.classList.remove("hidden");
+  box.style.display="";
   txt.textContent=st.text;
   if(st.btn){ btn.hidden=false; btn.textContent=st.btn; }
   else btn.hidden=true;
@@ -1294,12 +1299,14 @@ function guideEvent(ev){
 }
 function finishGuide(){
   S.guideDone=true; S.guideStep=99; S.tut=99;
-  $("#coach").classList.add("hidden");
+  const box=$("#coach");
+  if(box){ box.classList.add("hidden"); box.style.display=""; }
+  const ptr=$("#pointer"); if(ptr) ptr.classList.add("hidden");
   placePointer();
   updateQuest();
-  // Ника already says this in the last bubble
   mark();
 }
+window.__skipGuide=finishGuide;
 
 function questInfo(){
   const rr=S.rooms;
@@ -1449,6 +1456,17 @@ async function start(){
   const qb=$("#questbar");
   if(qb) qb.addEventListener("click", ev=>{ ev.preventDefault(); followQuest(); });
 
+  const md=$("#modal");
+  if(md && !md.dataset.backdrop){
+    md.dataset.backdrop="1";
+    md.addEventListener("click", ev=>{ if(ev.target===md) closeModal(); });
+  }
+  const cn=$("#cinema");
+  if(cn && !cn.dataset.backdrop){
+    cn.dataset.backdrop="1";
+    cn.addEventListener("click", ev=>{ if(ev.target===cn) closeCinema(); });
+  }
+
   $("#loading").classList.add("hidden");
   $("#game").classList.remove("hidden");
   requestAnimationFrame(frame);
@@ -1476,7 +1494,7 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
       if(refreshing) return; refreshing=true; location.reload();
     });
-    navigator.serviceWorker.register("sw.js").then(reg=>{
+    navigator.serviceWorker.register("sw.js?v=5").then(reg=>{
       setInterval(()=>reg.update(), 60*1000);
       reg.addEventListener("updatefound",()=>{
         const w=reg.installing;

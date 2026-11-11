@@ -1,14 +1,56 @@
-const CACHE='policeuch-v4';
-const FILES=['./', './apple-touch-icon.png', './assets/avatar.webp', './assets/exo2.ttf', './assets/heroes/alina.webp', './assets/heroes/anna.webp', './assets/heroes/darya.webp', './assets/heroes/elena.webp', './assets/heroes/irina.webp', './assets/heroes/katya.webp', './assets/heroes/marina.webp', './assets/heroes/natalya.webp', './assets/heroes/nika.webp', './assets/heroes/olga.webp', './assets/heroes/polina.webp', './assets/heroes/sofia.webp', './assets/heroes/victoria.webp', './assets/nunito.ttf', './assets/rooms/interrog-bg.webp', './assets/rooms/wing-more.webp', './assets/rooms/wing-start.webp', './assets/sprites/alina-purple.webp', './assets/sprites/alina-red.webp', './assets/sprites/alina-white.webp', './assets/sprites/alina.webp', './assets/sprites/anna-purple.webp', './assets/sprites/anna-red.webp', './assets/sprites/anna-white.webp', './assets/sprites/anna.webp', './assets/sprites/car-police.webp', './assets/sprites/civ-man.webp', './assets/sprites/civ-older.webp', './assets/sprites/civ-woman.webp', './assets/sprites/darya-purple.webp', './assets/sprites/darya-red.webp', './assets/sprites/darya-white.webp', './assets/sprites/darya.webp', './assets/sprites/elena-purple.webp', './assets/sprites/elena-red.webp', './assets/sprites/elena-white.webp', './assets/sprites/elena.webp', './assets/sprites/inmate-m.webp', './assets/sprites/irina-purple.webp', './assets/sprites/irina-red.webp', './assets/sprites/irina-white.webp', './assets/sprites/irina.webp', './assets/sprites/katya-purple.webp', './assets/sprites/katya-red.webp', './assets/sprites/katya-white.webp', './assets/sprites/katya.webp', './assets/sprites/marina-purple.webp', './assets/sprites/marina-red.webp', './assets/sprites/marina-white.webp', './assets/sprites/marina.webp', './assets/sprites/natalya-purple.webp', './assets/sprites/natalya-red.webp', './assets/sprites/natalya-white.webp', './assets/sprites/natalya.webp', './assets/sprites/nika-portrait.webp', './assets/sprites/nika-purple.webp', './assets/sprites/nika-red.webp', './assets/sprites/nika-white.webp', './assets/sprites/nika.webp', './assets/sprites/olga-purple.webp', './assets/sprites/olga-red.webp', './assets/sprites/olga-white.webp', './assets/sprites/olga.webp', './assets/sprites/polina-purple.webp', './assets/sprites/polina-red.webp', './assets/sprites/polina-white.webp', './assets/sprites/polina.webp', './assets/sprites/sofia-purple.webp', './assets/sprites/sofia-red.webp', './assets/sprites/sofia-white.webp', './assets/sprites/sofia.webp', './assets/sprites/suspect-boss.webp', './assets/sprites/suspect-f.webp', './assets/sprites/suspect-hood.webp', './assets/sprites/suspect-m.webp', './assets/sprites/victoria-purple.webp', './assets/sprites/victoria-red.webp', './assets/sprites/victoria-white.webp', './assets/sprites/victoria.webp', './data.js', './favicon.png', './game.js', './icon-192.png', './icon-512.png', './index.html', './manifest.webmanifest', './style.css', './sw.js'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()));});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
-self.addEventListener('message',e=>{ if(e.data&&e.data.type==='SKIP') self.skipWaiting(); });
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  if(e.request.mode==='navigate'){
-    e.respondWith(fetch(e.request).then(res=>{const cp=res.clone();caches.open(CACHE).then(c=>c.put('./index.html',cp));return res;})
-      .catch(()=>caches.match('./index.html')));return;}
-  e.respondWith(caches.match(e.request,{ignoreSearch:true}).then(r=>r||fetch(e.request).then(res=>{
-    if(res.ok&&new URL(e.request.url).origin===location.origin){const cp=res.clone();caches.open(CACHE).then(c=>c.put(e.request,cp));}
-    return res;}).catch(()=>caches.match('./index.html'))));
+/* policeuch-v5: network-first for HTML/JS/CSS so iOS never mixes a new page with a stale stylesheet.
+   Images/fonts are cache-first. All previous caches are deleted on activate. */
+const CACHE='policeuch-v5';
+const SHELL=/\.(?:js|css|webmanifest)$/i;
+
+self.addEventListener('install', e=>{
+  e.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', e=>{
+  e.waitUntil((async()=>{
+    const keys=await caches.keys();
+    await Promise.all(keys.map(k=>caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('message', e=>{
+  if(e.data && e.data.type==='SKIP') self.skipWaiting();
+});
+
+function sameOrigin(req){
+  try{ return new URL(req.url).origin===self.location.origin; }catch{ return false; }
+}
+function isShell(req){
+  if(req.mode==='navigate') return true;
+  const p=new URL(req.url).pathname;
+  if(p.endsWith('/') || p.endsWith('/index.html') || /\/sw\.js$/.test(p)) return true;
+  return SHELL.test(p);
+}
+
+self.addEventListener('fetch', e=>{
+  if(e.request.method!=='GET') return;
+  if(!sameOrigin(e.request)) return;
+  if(isShell(e.request)){
+    e.respondWith(
+      fetch(e.request, {cache:'no-store'}).then(res=>{
+        if(res && res.ok){
+          const cp=res.clone();
+          caches.open(CACHE).then(c=>c.put(e.request, cp)).catch(()=>{});
+        }
+        return res;
+      }).catch(()=>caches.match(e.request).then(r=>r || caches.match('./index.html') || caches.match('/index.html')))
+    );
+    return;
+  }
+  e.respondWith(
+    caches.match(e.request, {ignoreSearch:true}).then(hit=> hit || fetch(e.request).then(res=>{
+      if(res && res.ok){
+        const cp=res.clone();
+        caches.open(CACHE).then(c=>c.put(e.request, cp)).catch(()=>{});
+      }
+      return res;
+    }))
+  );
 });

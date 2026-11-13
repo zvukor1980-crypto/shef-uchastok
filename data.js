@@ -58,7 +58,7 @@ const TASKS = [
   {id:"t2", name:"Расследовать 5 дел",        key:"warrants",  need:5,    rew:{cash:1000, diamonds:25}},
   {id:"t3", name:"Отправить 3 патруля",       key:"patrols",   need:3,    rew:{gas:30, diamonds:20}},
   {id:"t4", name:"Провести 3 допроса",        key:"interrogs", need:3,    rew:{cash:1200, diamonds:25}},
-  {id:"t5", name:"Собрать 5 000 ₽",           key:"cashGot",   need:5000, rew:{cash:2000, diamonds:40}},
+  {id:"t5", name:"Собрать 5 000 ₪",           key:"cashGot",   need:5000, rew:{cash:2000, diamonds:40}},
   {id:"t6", name:"Улучшить любую комнату",    key:"upgrades",  need:1,    rew:{cash:1500, diamonds:30}},
   {id:"t7", name:"Нанять или улучшить героиню",key:"heroActs", need:1,    rew:{diamonds:50}},
   {id:"t8", name:"Заглянуть в магазин",       key:"shopVisits",need:1,    rew:{cash:1000, diamonds:20}}
@@ -72,9 +72,9 @@ const SHOP = [
     {id:"d50k",  icon:"💎", name:"Хранилище алмазов", sub:"50 000 алмазов",        give:{diamonds:50000}}
   ]},
   {cat:"Ресурсы участка", items:[
-    {id:"c1", icon:"💰", name:"Пачка денег",     sub:"+10 000 ₽",     give:{cash:10000}},
-    {id:"c2", icon:"💰", name:"Сейф денег",      sub:"+50 000 ₽",     give:{cash:50000}},
-    {id:"c3", icon:"💰", name:"Резерв участка",  sub:"+200 000 ₽",    give:{cash:200000}},
+    {id:"c1", icon:"💰", name:"Пачка денег",     sub:"+10 000 ₪",     give:{cash:10000}},
+    {id:"c2", icon:"💰", name:"Сейф денег",      sub:"+50 000 ₪",     give:{cash:50000}},
+    {id:"c3", icon:"💰", name:"Резерв участка",  sub:"+200 000 ₪",    give:{cash:200000}},
     {id:"g1", icon:"⛽", name:"Канистры бензина", sub:"+200 бензина",  give:{gas:200}},
     {id:"a1", icon:"🔫", name:"Ящик патронов",    sub:"+200 патронов", give:{ammo:200}},
     {id:"e1", icon:"⚡", name:"Запас энергии",    sub:"+200 электричества", give:{elec:200}}
@@ -250,7 +250,7 @@ const ACHIEVES = [
   {id:"a3", name:"Быстрый шеф",        desc:"Соберите серию из 3 дел подряд",   key:"maxCombo",  need:3,  rew:{diamonds:60}},
   {id:"a4", name:"Команда мечты",      desc:"Назначьте 3 героинь за столы",     key:"assigns",   need:3,  rew:{diamonds:70}},
   {id:"a5", name:"Уютный участок",     desc:"Улучшите комнаты 5 раз",           key:"upgrades",  need:5,  rew:{cash:3000, diamonds:50}},
-  {id:"a6", name:"Щедрая касса",       desc:"Соберите 10 000 ₽",                key:"cashGot",   need:10000, rew:{diamonds:80}},
+  {id:"a6", name:"Щедрая касса",       desc:"Соберите 10 000 ₪",                key:"cashGot",   need:10000, rew:{diamonds:80}},
   {id:"a7", name:"Звезда отдела",      desc:"Наберите любую героиню",           key:"heroActs",  need:1,  rew:{diamonds:50}},
   {id:"a8", name:"Особый улов",        desc:"Поймайте особо опасного",          key:"bosses",    need:1,  rew:{diamonds:120, cash:4000}}
 ];

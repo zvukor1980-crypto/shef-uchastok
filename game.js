@@ -1753,7 +1753,7 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
       if(refreshing) return; refreshing=true; if(S) save(); location.reload();
     });
-    navigator.serviceWorker.register("sw.js?v=8").then(reg=>{
+    navigator.serviceWorker.register("sw.js?v=9").then(reg=>{
       setInterval(()=>reg.update(), 60*1000);
       reg.addEventListener("updatefound",()=>{
         const w=reg.installing;

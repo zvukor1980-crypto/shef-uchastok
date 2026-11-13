@@ -559,7 +559,7 @@ window.Scene = (() => {
     if(!cv || !ctx) return;
     resize();
     if(W < 2 || H < 2) return;
-    time = reduce ? 0 : (ts || 0) / 1000;
+    time = ((ts || 0) / 1000) * (reduce ? 0.2 : 1);
     const key = ROOM_ORDER.map(id => (S.rooms[id].level) + (S.chiefLv >= ROOMS[id].unlock ? "o" : "x")).join(".") + "|" + (W|0) + "x" + (H|0) + "@" + dpr;
     if(key !== cacheKey){
       try{ paintStatic(S); cacheKey = key; }
@@ -631,7 +631,7 @@ window.Scene = (() => {
   }
 
   function drawClouds(c, t){
-    const blobs = [[0.15, 0.05, 1, 18],[0.48, 0.08, 0.75, 26],[0.78, 0.04, 1.15, 14],[0.3, 0.55, 0.8, 22],[0.7, 0.58, 1, 16]];
+    const blobs = [[0.15, 0.05, 1, 34],[0.48, 0.08, 0.75, 48],[0.78, 0.04, 1.15, 28],[0.3, 0.55, 0.8, 40],[0.7, 0.58, 1, 32]];
     for(const [fx, fy, s, sp] of blobs){
       const x = ((fx * W + t * sp) % (W + 160)) - 80;
       const y = fy * H;
@@ -652,7 +652,7 @@ window.Scene = (() => {
     c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 6, y - 40 * sc, x + Math.sin(t * 0.4) * 3, y - 78 * sc); c.stroke();
     const topx = x + Math.sin(t * 0.4) * 3, topy = y - 78 * sc;
     for(let i = 0; i < 7; i++){
-      const a = -2.5 + i * 0.55 + Math.sin(t * 1.5 + i) * 0.1;
+      const a = -2.5 + i * 0.55 + Math.sin(t * 1.7 + i) * 0.22;
       c.strokeStyle = i % 2 ? "#1c7a3a" : "#2fa85a";
       c.lineWidth = 2.4 * sc;
       c.beginPath(); c.moveTo(topx, topy);
@@ -668,7 +668,7 @@ window.Scene = (() => {
     const cols = 14, fw = h * 1.35, fh = h * 0.68;
     const bands = [[0, 0.16, "#0038b8"], [0.16, 0.84, "#ffffff"], [0.84, 1, "#0038b8"]];
     function flagPt(u, v){
-      const wave = Math.sin(u * 6.2 + t * 3.3) * u * (h * 0.09) + Math.sin(t * 2.1 + v * 4) * 1.5;
+      const wave = Math.sin(u * 5.4 + t * 3.6) * u * (h * 0.2) + Math.sin(t * 2.4 + v * 4) * 2.4;
       return {x:x + 4 + u * fw, y:y - h + 4 + v * fh + wave + u * u * 3};
     }
     for(const [v0, v1, colr] of bands){
@@ -784,17 +784,17 @@ window.Scene = (() => {
       const v = i / strips;
       let ox = 0, oy = 0;
       if(v < 0.24){
-        ox += sway * dw * 0.012 * (0.24 - v) * 4;
-        oy += Math.sin(phase * 1.7) * dh * 0.004;
+        ox += sway * dw * 0.045 * (0.24 - v) * 4;
+        oy += Math.sin(phase * 1.7) * dh * 0.01;
       }
-      if(v > 0.2 && v < 0.55) oy += breathe * dh * 0.01 * Math.sin((v - 0.2) * 4);
-      if(v > 0.5) ox += Math.sin(phase * 1.5) * dw * 0.01;
+      if(v > 0.2 && v < 0.55) oy += breathe * dh * 0.022 * Math.sin((v - 0.2) * 4);
+      if(v > 0.5) ox += Math.sin(phase * 1.5) * dw * 0.02;
       if(mode === "walk"){
-        oy += Math.abs(Math.sin(phase * 8)) * -dh * 0.01;
-        if(v > 0.55) ox += Math.sin(phase * 8 + v * 5) * dw * 0.03;
+        oy += Math.abs(Math.sin(phase * 8)) * -dh * 0.02;
+        if(v > 0.55) ox += Math.sin(phase * 8 + v * 5) * dw * 0.07;
       }
-      if(mode === "type" && v > 0.22 && v < 0.5) ox += Math.sin(phase * 10 + v * 8) * dw * 0.02;
-      if(mode === "papers" && v > 0.25 && v < 0.55) ox += Math.sin(phase * 4 + i) * dw * 0.016;
+      if(mode === "type" && v > 0.22 && v < 0.5) ox += Math.sin(phase * 10 + v * 8) * dw * 0.045;
+      if(mode === "papers" && v > 0.25 && v < 0.55) ox += Math.sin(phase * 4 + i) * dw * 0.035;
       if(mode === "inspect" && v < 0.6) ox += dw * 0.03 + sway * dw * 0.01;
       if(mode === "guard") ox += Math.sin(phase * 0.9) * dw * 0.012;
       if(mode === "talk" && v < 0.3) ox += Math.sin(phase * 3) * dw * 0.02;
@@ -811,7 +811,7 @@ window.Scene = (() => {
     c.drawImage(im, 0, 0, im.width * tailCut, im.height, -dw / 2, -dh + breathe, dw * tailCut, dh);
     c.save();
     c.translate(-dw / 2 + dw * tailCut, -dh * 0.42);
-    c.rotate(Math.sin(phase * 5) * 0.18);
+    c.rotate(Math.sin(phase * 5) * 0.38);
     c.drawImage(im, im.width * (tailCut - 0.02), im.height * 0.15, im.width * (1 - tailCut + 0.02), im.height * 0.7, -dw * 0.02, -dh * 0.2, dw * (1 - tailCut + 0.02), dh * 0.7);
     c.restore();
     // chest breath overlay already in body shift

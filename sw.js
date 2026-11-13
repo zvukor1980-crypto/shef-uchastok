@@ -1,6 +1,6 @@
-/* v17: living lacquer precinct, outfit ranks, women-only cast. */
-const CACHE='policeuch-v17';
-const SHELL=['./','./index.html','./style.css?v=17','./data.js?v=17','./render.js?v=17','./game.js?v=17','./manifest.webmanifest?v=17'];
+/* v18: living lacquer precinct, outfit ranks, women-only cast. */
+const CACHE='policeuch-v18';
+const SHELL=['./','./index.html','./style.css?v=18','./data.js?v=18','./render.js?v=18','./game.js?v=18','./manifest.webmanifest?v=18'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   await cache.addAll(SHELL);

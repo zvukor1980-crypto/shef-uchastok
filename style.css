@@ -535,3 +535,14 @@ button:focus-visible{outline:3px solid #ffd85b;outline-offset:2px}
 @media (prefers-reduced-motion:reduce){
  .actor.walk img,.actor.idle img,.actor.shiny:after{animation:none!important}
 }
+
+/* v9 heroine transformations: glow increases with upgrades, silhouettes remain legible. */
+.actor[data-hero].hero-rank-1 img{filter:drop-shadow(0 0 5px #ffe79b) saturate(1.21)}
+.actor[data-hero].hero-rank-2 img{filter:drop-shadow(0 0 8px #ff9cda) saturate(1.26)}
+.actor[data-hero].hero-rank-3 img{filter:drop-shadow(0 0 10px #c69bff) drop-shadow(0 0 4px #fff) saturate(1.34)}
+.actor[data-hero].hero-rank-1::before,.actor[data-hero].hero-rank-2::before,.actor[data-hero].hero-rank-3::before{
+ content:"✦";position:absolute;left:50%;top:-7%;transform:translateX(-50%);
+ font-size:14px;color:#ffe792;text-shadow:0 0 8px #fff;z-index:3;pointer-events:none;
+}
+.actor[data-hero].hero-rank-2::before{content:"✦✦";color:#ffb2e7}
+.actor[data-hero].hero-rank-3::before{content:"✦✦✦";color:#dfc3ff}

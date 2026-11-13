@@ -159,12 +159,13 @@ function todayKey(){
 function defaultState(){
   const rooms={};
   for(const id of ROOM_ORDER){
-    rooms[id]={level:1, hero:null, in:0, out:0, prog:0, work:false, pending:0};
+    rooms[id]={level:1, hero:null, in:0, out:0, prog:0, work:false, pending:0,
+      parts:{floor:0,walls:0,light:0,furn:0,decor:0}};
   }
   rooms.reception.hero=null;
   const heroes={};
-  for(const id of HERO_ORDER) heroes[id]={owned:false, level:1, stars:0, assigned:null, frags:0};
-  heroes.anna={owned:true, level:1, stars:0, assigned:null, frags:0};
+  for(const id of HERO_ORDER) heroes[id]={owned:false, level:1, stars:0, assigned:null, frags:0, tracks:{uniform:0,insignia:0,accessory:0}};
+  heroes.anna={owned:true, level:1, stars:0, assigned:null, frags:0, tracks:{uniform:0,insignia:0,accessory:0}};
   return {
     cash:2500, gas:40, ammo:25, elec:30, diamonds:150, sat:10,
     chiefLv:1, vip:0, fund:false, pass:false, secondQueue:false,
@@ -203,9 +204,9 @@ const ENTRANCE = {x:8, y:36};
 const SAY = {
   citizen:["Помогите, пожалуйста!","Нужно заявление!","У меня пропала сумка!","Сосед шумит всю ночь!","Украли велосипед!","Что-то подозрительное у дома…"],
   staff:["Сейчас оформлю.","Документы готовы!","Ордер подписан.","Выезжаем!","Сейчас разберёмся.","Порядок будет."],
-  suspect:["Это не я!","Я всё расскажу!","Подождите!","Я просто проходил мимо.","Не надо в камеру!"],
+  suspect:["Это не я!","Я всё расскажу!","Подождите!","Я просто проходила мимо.","Не надо в камеру!"],
   inmate:["Тихо тут…","Когда обед?","Я больше не буду."],
-  iqOpen:["Это не я, клянусь!","Я просто проходил мимо.","У вас ничего на меня нет.","Давайте поговорим спокойно."],
+  iqOpen:["Это не я, клянусь!","Я просто проходила мимо.","У вас ничего на меня нет.","Давайте поговорим спокойно."],
   iqScare:["Ладно, ладно, я скажу!","Только не кричите…","Хорошо, это был я."],
   iqTalk:["Спасибо, что выслушали.","Я расскажу, как всё было.","Вы добры… вот правда."]
 };
@@ -227,21 +228,47 @@ const OUTFIT_COLORS = [
   {id:"white",  name:"Белая",   css:"#e8e8f0"}
 ];
 
-function heroSprite(id, outfit){
-  const c = outfit || "black";
-  if(c && c!=="black") return "assets/sprites/"+id+"-"+c+".webp";
-  return "assets/sprites/"+id+".webp";
+const PARTS=[
+  {id:"floor", name:"Пол", icon:"✨", hint:"лак и инкрустация"},
+  {id:"walls", name:"Стены", icon:"🏛️", hint:"панели и позолота"},
+  {id:"light", name:"Свет", icon:"💡", hint:"люстры и лампы"},
+  {id:"furn", name:"Мебель", icon:"🪑", hint:"лаковые столы и кресла"},
+  {id:"decor", name:"Декор", icon:"🌿", hint:"флаги, цветы, знаки"}
+];
+const PART_MAX=4;
+const ROOM_ART_MAX={reception:3,detective:3,interrog:3,cells:3,garage:3,chief:3,armory:1,electric:1,gasstation:1,press:1,suggest:1};
+function partCost(lv){ return Math.floor(260*Math.pow(1.42, lv||0)); }
+function heroStage(level){
+  level=level||1;
+  if(level>=8) return 3;
+  if(level>=4) return 2;
+  return 1;
+}
+function heroFlair(id){
+  const h=(typeof S!=="undefined" && S && S.heroes && S.heroes[id]) || {level:1, tracks:{}};
+  const t=h.tracks||{};
+  const lv=h.level||1;
+  const stageLv=Math.max(lv, (t.uniform||0)>=4?8:(t.uniform||0)>=2?4:1);
+  return {
+    stage:heroStage(stageLv),
+    insignia:Math.max(t.insignia||0, Math.floor((lv-1)/2)),
+    accessory:Math.max(t.accessory||0, Math.floor((lv-1)/3))
+  };
+}
+function heroSprite(id){
+  const stage=(heroFlair(id).stage)||1;
+  return "assets/art/heroes/"+id+"-"+stage+".webp";
 }
 
 const CASES = [
   {id:"bag",     title:"Кража сумочки",        story:"У жительницы у киоска пропала любимая сумочка.",          civ:"civ-woman", suspect:"suspect-f",    line:"Я просто придержала её, пока выбирали мороженое!"},
-  {id:"scooter", title:"Угон самоката",        story:"Самокат улетел из-под носа у владельца на площади.",     civ:"civ-man",   suspect:"suspect-hood", line:"Я хотел только доехать до остановки, честно!"},
+  {id:"scooter", title:"Угон самоката",        story:"Самокат улетел из-под носа у владельца на площади.",     civ:"civ-man",   suspect:"suspect-hood", line:"Я хотела только доехать до остановки, честно!"},
   {id:"graf",    title:"Граффити на заборе",   story:"На новом заборе участка появилась огромная подпись.",    civ:"civ-older", suspect:"suspect-m",    line:"Это искусство! Вы просто не понимаете стиль."},
-  {id:"cat",     title:"Пропал кот Барсик",    story:"Пушистый Барсик не вернулся к ужину. Житель в панике.", civ:"civ-older", suspect:"suspect-f",    line:"Кот сам зашёл в подъезд, я только открыл дверь."},
-  {id:"noise",   title:"Соседский шум",        story:"Сосед пел караоке до утра — весь дом на ногах.",        civ:"civ-woman", suspect:"suspect-hood", line:"Я думал, у всех отличный слух…"},
-  {id:"wallet",  title:"Потерянный кошелёк",   story:"Кошелёк исчез на рынке между прилавками.",               civ:"civ-man",   suspect:"suspect-m",    line:"Я хотел отнести его в бюро находок, вот!"},
+  {id:"cat",     title:"Пропал кот Барсик",    story:"Пушистый Барсик не вернулся к ужину. Жительница в панике.", civ:"civ-older", suspect:"suspect-f",    line:"Кот сам зашёл в подъезд, я только открыла дверь."},
+  {id:"noise",   title:"Соседский шум",        story:"Соседка пела караоке до утра — весь дом на ногах.",        civ:"civ-woman", suspect:"suspect-hood", line:"Я думала, у всех отличный слух…"},
+  {id:"wallet",  title:"Потерянный кошелёк",   story:"Кошелёк исчез на рынке между прилавками.",               civ:"civ-man",   suspect:"suspect-m",    line:"Я хотела отнести его в бюро находок, вот!"},
   {id:"cake",    title:"Спор из-за торта",     story:"Два соседа не поделили последний торт в пекарне.",      civ:"civ-woman", suspect:"suspect-f",    line:"Это был мой торт, я стояла первой!"},
-  {id:"bike",    title:"Велосипед «на минутку»",story:"Велосипед одолжили «на минутку» ещё вчера.",            civ:"civ-man",   suspect:"suspect-hood", line:"Цепь упала, я чинил его весь вечер."},
+  {id:"bike",    title:"Велосипед «на минутку»",story:"Велосипед одолжили «на минутку» ещё вчера.",            civ:"civ-man",   suspect:"suspect-hood", line:"Цепь упала, я чинила его весь вечер."},
   {id:"boss",    title:"Особо опасный",        story:"В городе появился известный нарушитель. Это особое дело!", civ:"civ-older", suspect:"suspect-boss", boss:true, line:"У вас ничего на меня нет. Это всё совпадение."}
 ];
 

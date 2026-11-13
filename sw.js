@@ -1,16 +1,44 @@
-/* policeuch-v7: network-first for HTML/JS/CSS so iOS never mixes a new page with a stale stylesheet.
-   Images/fonts are cache-first. All previous caches are deleted on activate. */
-const CACHE='policeuch-v7';
+/* policeuch-v8: network-first for HTML/JS/CSS so an update replaces stale files.
+   Images and fonts are cache-first. Only previous cache names are deleted. */
+const CACHE='policeuch-v9';
 const SHELL=/\.(?:js|css|webmanifest)$/i;
+const PRECACHE=[
+  './',
+  './index.html',
+  './style.css?v=9',
+  './game.js?v=9',
+  './data.js?v=9',
+  './manifest.webmanifest?v=9',
+  './assets/art/rooms/reception-1.webp',
+  './assets/art/rooms/detective-1.webp',
+  './assets/art/rooms/interrog-1.webp',
+  './assets/art/rooms/cells-1.webp',
+  './assets/art/rooms/garage-1.webp',
+  './assets/art/heroes/anna-1.webp',
+  './favicon.png',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png',
+  './assets/avatar.webp',
+  './assets/nunito.ttf',
+  './assets/exo2.ttf',
+  './assets/rooms/wing-start.webp',
+  './assets/rooms/wing-more.webp',
+  './assets/rooms/interrog-bg.webp',
+  './assets/sprites/car-police.webp',
+  './assets/heroes/nika.webp',
+  './assets/heroes/anna.webp',
+  './assets/sprites/anna.webp'
+];
 
 self.addEventListener('install', e=>{
-  e.waitUntil(self.skipWaiting());
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(PRECACHE)).then(()=>self.skipWaiting()));
 });
 
 self.addEventListener('activate', e=>{
   e.waitUntil((async()=>{
     const keys=await caches.keys();
-    await Promise.all(keys.map(k=>caches.delete(k)));
+    await Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -40,7 +68,7 @@ self.addEventListener('fetch', e=>{
           caches.open(CACHE).then(c=>c.put(e.request, cp)).catch(()=>{});
         }
         return res;
-      }).catch(()=>caches.match(e.request).then(r=>r || caches.match('./index.html') || caches.match('/index.html')))
+      }).catch(()=>caches.match(e.request).then(r=>r || caches.match('./index.html') || caches.match('./') || caches.match('/index.html')))
     );
     return;
   }

@@ -8,29 +8,24 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Участок">
-<meta name="theme-color" content="#1a6db5">
+<meta name="theme-color" content="#15599c">
 <meta name="description" content="Управляйте полицейским участком: принимайте заявления, расследуйте дела, проводите допросы и улучшайте комнаты.">
-<link rel="manifest" href="manifest.webmanifest?v=7">
+<link rel="manifest" href="manifest.webmanifest?v=9">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="favicon.png">
 <style>
-/* Critical: hide overlays and cap images even if style.css is stale, missing, or cached by an old SW */
+/* First paint only. Precise image sizes live in style.css — do not cap every img. */
 .hidden{display:none!important}
 html,body{margin:0;padding:0;height:100%;height:100dvh;min-height:-webkit-fill-available;overflow:hidden;overscroll-behavior:none;background:#3db4f0;-webkit-text-size-adjust:100%}
 #app{position:fixed;inset:0;display:flex;flex-direction:column}
-img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
 .ld-icon{width:128px;height:128px;max-width:128px;max-height:20vh;object-fit:cover;border-radius:28px}
-.avatar{width:48px;height:48px;max-width:48px;max-height:48px;object-fit:cover;border-radius:50%;flex:none;min-width:0}
-.qb-ava,#questbar img,#nikatip img{width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover;border-radius:50%;flex:none;min-width:0}
-#coachava,#coach img{width:92px;max-width:92px;max-height:28vh;height:auto;object-fit:contain;flex:none;min-width:0}
-.wing>img{width:100%;height:auto;max-width:100%;max-height:none;object-fit:contain}
-.actor{max-width:18%;max-height:28vh}
-.actor img,#actors img{width:100%;max-width:100%;max-height:28vh;height:auto;object-fit:contain}
-.hcard img,.seat img,.reveal img,.flip-face img,.iq-card img,.assignee img{max-width:100%;max-height:42vh;object-fit:contain}
+.avatar{width:48px;height:48px;max-width:48px;max-height:48px;object-fit:cover;border-radius:50%;flex:none}
+.qb-ava,#nikatip img{width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover;border-radius:50%;flex:none}
+#coach img{width:92px;max-width:92px;max-height:28vh;height:auto;object-fit:contain}
+.plate-bg,.plate-people img{max-width:none!important;max-height:none!important;object-fit:contain;height:auto;background:transparent}
 #loading{position:absolute;inset:0;z-index:50}
-#cinema .unlock-room{width:70%;max-width:280px;max-height:40vh;object-fit:contain}
 </style>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <div id="app">
@@ -66,31 +61,19 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
     </header>
 
     <div id="stage">
+      <p id="hint">Листайте вниз — у каждого крыла свои комнаты</p>
       <div id="precinct">
-        <div id="campus">
-          <div class="wing" id="wing1">
-            <img src="assets/rooms/wing-start.webp" alt="Участок" width="900" height="1600" draggable="false">
-          </div>
-          <div class="wing" id="wing2">
-            <img src="assets/rooms/wing-more.webp" alt="Новые комнаты" width="900" height="1600" draggable="false">
-          </div>
-          <div id="daytint"></div>
-          <div id="hotspots"></div>
-          <div id="actors"></div>
-          <div id="bubbles"></div>
-          <div id="labels"></div>
-        </div>
+        <div id="campus"></div>
       </div>
-      <div id="hint">▼ листайте вниз — ещё комнаты ▼</div>
     </div>
 
     <div id="sheet" class="hidden"></div>
 
     <nav id="tabs">
-      <button class="tab on" data-act="tab" data-arg="station" data-testid="tab-station"><span class="ti">🏛️</span>Участок</button>
-      <button class="tab" data-act="tab" data-arg="heroes" data-testid="tab-heroes"><span class="ti">⭐</span>Героини</button>
       <button class="tab" data-act="tab" data-arg="tasks" data-testid="tab-tasks"><span class="ti">📋</span>Задания</button>
-      <button class="tab shop" data-act="tab" data-arg="shop" data-testid="tab-shop"><span class="ti">🛒</span>Магазин<div class="free">БЕСПЛАТНО</div></button>
+      <button class="tab" data-act="tab" data-arg="heroes" data-testid="tab-heroes"><span class="ti">⭐</span>Состав</button>
+      <button class="tab" data-act="tab" data-arg="upgrades" data-testid="tab-upgrades"><span class="ti">🏛️</span>Улучшения</button>
+      <button class="tab shop" data-act="tab" data-arg="shop" data-testid="tab-shop"><span class="ti">🛍️</span>Магазин<div class="free">БЕСПЛАТНО</div></button>
     </nav>
   </div>
 
@@ -119,54 +102,7 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
   <div id="modal" class="hidden"></div>
   <div id="toasts"></div>
 </div>
-<script>
-/* Safety net if an old SW still serves stale CSS/JS: never let a character fill the screen, always allow skip/close. */
-(function(){
-  function cap(){
-    var imgs=document.querySelectorAll("img");
-    for(var i=0;i<imgs.length;i++){
-      var el=imgs[i], cls=(el.className||"")+" "+(el.id||"")+" "+(el.parentNode&&el.parentNode.id||"");
-      if(/ld-icon/.test(cls)){ el.style.maxWidth="128px"; el.style.maxHeight="20vh"; el.style.width="128px"; }
-      else if(/avatar/.test(cls) && !/qb-ava/.test(cls)){ el.style.maxWidth="48px"; el.style.maxHeight="48px"; el.style.width="48px"; el.style.height="48px"; el.style.objectFit="cover"; }
-      else if(/qb-ava|questbar/.test(cls)){ el.style.maxWidth="36px"; el.style.maxHeight="36px"; el.style.width="36px"; el.style.height="36px"; el.style.objectFit="cover"; }
-      else if(/nikatip/.test(cls)){ el.style.maxWidth="36px"; el.style.maxHeight="36px"; el.style.width="36px"; el.style.height="36px"; el.style.objectFit="cover"; }
-      else if(/coachava|coach/.test(cls)){ el.style.maxWidth="92px"; el.style.maxHeight="28vh"; el.style.width="92px"; el.style.height="auto"; el.style.objectFit="contain"; }
-      else if(el.closest && (el.closest(".actor")||el.closest("#actors"))){ el.style.maxHeight="28vh"; el.style.maxWidth="18vw"; el.style.height="auto"; }
-      else if(el.closest && el.closest(".wing")){ el.style.maxWidth="100%"; el.style.width="100%"; el.style.height="auto"; el.style.maxHeight="none"; }
-      else if(el.closest && (el.closest(".hcard")||el.closest(".seat")||el.closest(".reveal")||el.closest(".flip-face")||el.closest(".iq-card")||el.closest(".assignee"))){ el.style.maxWidth="100%"; el.style.maxHeight="42vh"; }
-    }
-  }
-  var skipped=false;
-  function hide(id){ var n=document.getElementById(id); if(n){ n.classList.add("hidden"); n.style.display="none"; } }
-  function skipGuide(){
-    skipped=true;
-    hide("coach"); hide("pointer");
-    try{
-      var k="shef-uchastok-v3";
-      var raw=localStorage.getItem(k);
-      var o=raw?JSON.parse(raw):{};
-      o.guideDone=true; o.guideStep=99; o.tut=99;
-      localStorage.setItem(k, JSON.stringify(o));
-    }catch(e){}
-    if(typeof window.__skipGuide==="function") try{ window.__skipGuide(); }catch(e){}
-  }
-  document.addEventListener("click", function(ev){
-    var t=ev.target;
-    var act=t.closest && t.closest("[data-act]");
-    var a=act && act.getAttribute("data-act");
-    if(a==="guideskip"){ skipGuide(); return; }
-    if(t.id==="modal" || t.id==="cinema" || t.id==="iq"){
-      if(t.id==="modal" && window.__GAME) try{ window.__GAME().closeModal(); }catch(e){ hide("modal"); }
-      if(t.id==="cinema") hide("cinema");
-      if(t.id==="iq") hide("iq");
-    }
-  }, true);
-  cap();
-  setInterval(function(){ cap(); if(skipped){ hide("coach"); hide("pointer"); } }, 800);
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", cap);
-})();
-</script>
-<script src="data.js?v=7"></script>
-<script src="game.js?v=7"></script>
+<script src="data.js?v=9"></script>
+<script src="game.js?v=9"></script>
 </body>
 </html>

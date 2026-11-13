@@ -1,4 +1,4 @@
-/* Шеф полиции: Участок v6 */
+/* Шеф полиции: Участок v9 */
 const SAVE_KEY="shef-uchastok-v3", SAVE_OLD="shef-uchastok-v2";
 let S, TAB="station", dirty=false, lastTs=0, acc=0, lastView=0;
 const $ = s=>document.querySelector(s);
@@ -73,11 +73,33 @@ function confetti(){
 }
 
 /* ===== state ===== */
+function readSave(key){
+  try{
+    const t=localStorage.getItem(key);
+    if(!t) return null;
+    const o=JSON.parse(t);
+    return (o && typeof o==="object") ? o : null;
+  }catch(e){ return null; }
+}
+function saveIsFull(o){
+  return !!(o && o.rooms && typeof o.rooms==="object" && ("cash" in o || "chiefLv" in o));
+}
 function load(){
   try{
-    const t=localStorage.getItem(SAVE_KEY)||localStorage.getItem(SAVE_OLD);
-    if(t){
-      const o=JSON.parse(t);
+    const cur=readSave(SAVE_KEY);
+    const old=readSave(SAVE_OLD);
+    let o=null, migrated=false;
+    if(saveIsFull(cur)) o=cur;
+    else if(saveIsFull(old)){
+      o=JSON.parse(JSON.stringify(old));
+      migrated=true;
+      if(cur){
+        if(cur.guideDone) o.guideDone=true;
+        if(typeof cur.tut==="number") o.tut=Math.max(o.tut||0, cur.tut||0);
+        if(typeof cur.guideStep==="number") o.guideStep=Math.max(o.guideStep||0, cur.guideStep||0);
+      }
+    }else o=cur;
+    if(o){
       S=deepMerge(defaultState(),o);
       for(const id of ROOM_ORDER) if(!S.rooms[id]) S.rooms[id]=defaultState().rooms[id];
       for(const id of HERO_ORDER){
@@ -102,6 +124,7 @@ function load(){
       }
       S.questFlags=S.questFlags||{};
       if(S.questIdx==null) S.questIdx=0;
+      if(migrated) save();
       return true;
     }
   }catch(e){console.warn(e);}
@@ -169,6 +192,8 @@ function placeToasts(){
   const tip=$("#nikatip");
   const tipOn=tip && !tip.classList.contains("hidden");
   box.classList.toggle("mid", !!tipOn);
+  const h=tipOn ? Math.min(180, (tip.offsetHeight||0)+14) : 0;
+  document.documentElement.style.setProperty("--tip-h", h+"px");
 }
 function pumpToast(){
   if(TQ.shown) return;
@@ -208,12 +233,46 @@ function checkAchieves(){
   }
 }
 
-/* ===== layout ===== */
-function wingTop(wing){ return wing===1?0:50; }
-function posStyle(wing,x,y){ return {left:x+"%", top:(wingTop(wing)+y*0.5)+"%"}; }
-function roomBox(id){
+/* ===== station: one plate per room, cropped from the wing art ===== */
+const ART={
+  1:{src:"assets/rooms/wing-start.webp", w:900, h:1600},
+  2:{src:"assets/rooms/wing-more.webp", w:900, h:1600}
+};
+const WINGS=[
+  {id:1, title:"Главный корпус", sub:"Приёмная, кабинеты, допрос, камеры и патруль"},
+  {id:2, title:"Служебное крыло", sub:"Шеф, оружейная, энергия, заправка и пресса"}
+];
+const PLATE_NAME={reception:"Приёмная",detective:"Детектив",interrog:"Допросная",cells:"Камеры",garage:"Гараж",
+  chief:"Шеф",armory:"Оружейная",electric:"Щитовая",suggest:"Предложения",gasstation:"Заправка",press:"Пресс-центр"};
+const LAMP={reception:"warm",detective:"desk",interrog:"spot",cells:"cool",garage:"floor",
+  chief:"desk",armory:"spot",electric:"green",suggest:"warm",gasstation:"canopy",press:"studio"};
+let dayMode="";
+
+function roomAt(wing,x,y){
+  let best=null, bestD=1e9, any=null, anyD=1e9;
+  for(const id of ROOM_ORDER){
+    const L=LAYOUT[id];
+    if(!L || L.wing!==wing) continue;
+    const cx=L.l+L.w/2, cy=L.t+L.h/2;
+    const d=(x-cx)*(x-cx)+(y-cy)*(y-cy);
+    if(d<anyD){ any=id; anyD=d; }
+    if(x>=L.l-4 && x<=L.l+L.w+4 && y>=L.t-4 && y<=L.t+L.h+4 && d<bestD){ best=id; bestD=d; }
+  }
+  return best||any;
+}
+function localPos(id,x,y){
   const L=LAYOUT[id];
-  return {left:L.l+"%", top:(wingTop(L.wing)+L.t*0.5)+"%", width:L.w+"%", height:(L.h*0.5)+"%"};
+  let lx=(x-L.l)/L.w*100, ly=(y-L.t)/L.h*100;
+  lx=Math.max(10, Math.min(90, lx));
+  ly=Math.max(28, Math.min(74, ly));
+  return {left:lx+"%", top:ly+"%"};
+}
+function platePeople(id){ return document.querySelector('.plate-people[data-room="'+id+'"]'); }
+function actorRoom(a){
+  if(!a) return "reception";
+  if(a.kind==="hero" && a.roam && LAYOUT[a.roam]) return a.roam;
+  if(a.id==="car") return "garage";
+  return roomAt(a.wing||1, a.x, a.y)||"reception";
 }
 /* ===== scroll lock: never yank the station while the player is browsing ===== */
 const USER_SCROLL_GUARD=6000;
@@ -249,8 +308,11 @@ function scrollStageToEl(el, opts){
     if(!force && userIsScrolling()) return;
     const sr=stage.getBoundingClientRect();
     const er=el.getBoundingClientRect();
-    if(er.width<2) return;
-    const delta=(er.top+er.height/2)-(sr.top+sr.height/2);
+    if(er.width<2 && er.height<2) return;
+    const tip=$("#nikatip");
+    const tipH=(tip && !tip.classList.contains("hidden")) ? Math.min(150, tip.offsetHeight+8) : 0;
+    const mid=(sr.top+8+(sr.bottom-tipH-8))/2;
+    const delta=(er.top+er.height/2)-mid;
     const max=Math.max(0, stage.scrollHeight-stage.clientHeight);
     const next=Math.max(0, Math.min(max, stage.scrollTop+delta));
     if(Math.abs(next-stage.scrollTop)<8) return;
@@ -264,7 +326,9 @@ function scrollStageToEl(el, opts){
   else run();
 }
 function scrollToRoom(id, opts){
-  const el=document.querySelector('[data-testid="room-'+id+'"]');
+  const plate=document.getElementById("plate-"+id);
+  const btn=plate && plate.querySelector(".plate-actions .abub");
+  const el=btn || (plate && plate.querySelector('[data-testid="room-'+id+'"]')) || document.querySelector('[data-testid="room-'+id+'"]');
   if(el) scrollStageToEl(el, opts);
 }
 
@@ -283,7 +347,7 @@ function walkTo(a,x,y,spd){ a.tx=x; a.ty=y; a.spd=spd||18; a.walk=true; }
 function spawnStaff(popHid){
   S.actors=S.actors.filter(a=>a.kind!=="hero");
   // drop leftover hero DOM so pop-in can replay
-  $$("#actors [data-hero]").forEach(el=>el.remove());
+  $$(".plate-people [data-hero]").forEach(el=>el.remove());
   for(const id of ROOM_ORDER){
     const hid=S.rooms[id].hero;
     if(!hid || !S.heroes[hid]?.owned) continue;
@@ -429,15 +493,15 @@ function tick(dt){
   S._vip=(S._vip||0)+dt;
   if(S.guideDone && S._vip>90){ S._vip=0; if(Math.random()<0.45) spawnVip(); }
 
-  // day/night
   S._day=(S._day||0)+dt;
   const cyc=(S._day/80)%1;
-  const tint=$("#daytint");
-  if(tint){
-    if(cyc>0.45 && cyc<0.58){ tint.style.background="#e8a050"; tint.style.opacity=".28"; } // dusk
-    else if(cyc>=0.58 && cyc<0.82){ tint.style.background="#1a2a68"; tint.style.opacity=".32"; } // night
-    else if(cyc>=0.82 && cyc<0.9){ tint.style.background="#f0b070"; tint.style.opacity=".22"; }
-    else { tint.style.opacity="0"; }
+  let mode="day";
+  if(cyc>0.45 && cyc<0.58) mode="dusk";
+  else if(cyc>=0.58 && cyc<0.82) mode="night";
+  else if(cyc>=0.82 && cyc<0.9) mode="dawn";
+  if(mode!==dayMode){
+    dayMode=mode;
+    document.documentElement.dataset.day=mode==="day"?"":mode;
   }
 
   if(S.combo>0){ S.comboTimer=(S.comboTimer||0)-dt; if(S.comboTimer<=0) S.combo=0; }
@@ -525,9 +589,30 @@ function tick(dt){
   S.actors=S.actors.filter(a=>a.life!==0);
 
   for(const a of S.actors){
-    if(a.kind==="hero" && a.roam && !a.walk && Math.random()<0.002){
+    if(a.kind==="hero" && a._visit>0 && !a.walk){
+      a._visit-=dt;
+      if(a._visit<=0 && a._home && LAYOUT[a._home]){
+        const home=a._home; a._home=null;
+        const L=LAYOUT[home];
+        a.roam=home; a.wing=L.wing;
+        a.x=L.ax+(Math.random()*6-3); a.y=Math.max(L.t+6, L.ay-8);
+        walkTo(a, L.ax, L.ay, 16);
+        say(a, "Я на месте.", 1.6);
+      }
+    }else if(a.kind==="hero" && a.roam && !a.walk && S.guideDone && !a.quiet && !a._home && Math.random()<0.0009){
+      const ids=ROOM_ORDER.filter(id=>id!==a.roam && S.chiefLv>=ROOMS[id].unlock && LAYOUT[id]);
+      if(ids.length){
+        const dest=ids[Math.random()*ids.length|0];
+        const L=LAYOUT[dest];
+        a._home=a.roam;
+        a.roam=dest; a.wing=L.wing;
+        a.x=L.ax+(Math.random()*10-5); a.y=Math.min(92, L.ay+8);
+        walkTo(a, L.ax, L.ay, 18);
+        a._visit=2.2+Math.random()*2;
+        say(a, "Загляну по делу.", 1.8);
+      }
+    }else if(a.kind==="hero" && a.roam && !a.walk && Math.random()<0.002){
       const L=LAYOUT[a.roam];
-      // stay close to the desk — don't wander off
       walkTo(a, L.ax+(Math.random()*6-3), L.ay+(Math.random()*4-1), 8);
     }
     if(a.kind==="hero"){ if(a.quiet>0) a.quiet-=dt; else if(!a.say && Math.random()<0.0007) say(a, pick(SAY.staff), 2.2); }
@@ -676,12 +761,46 @@ function sendRiot(){
   S.riot=false; S.riotTimer=0; AU.ok(); toast("Бунт подавлен"); mark(); hud();
 }
 
+function ensureParts(r){
+  if(!r.parts) r.parts={floor:0,walls:0,light:0,furn:0,decor:0};
+  for(const p of PARTS) if(r.parts[p.id]==null) r.parts[p.id]=0;
+  return r.parts;
+}
+function roomTier(id){
+  const r=S.rooms[id], p=ensureParts(r);
+  const sum=PARTS.reduce((n,x)=>n+(p[x.id]||0),0);
+  let tier=r.level>=4?3:r.level>=2?2:1;
+  if(sum>=8) tier=3; else if(sum>=3) tier=Math.max(tier,2);
+  return Math.min(tier, ROOM_ART_MAX[id]||1);
+}
+function roomArt(id){ return "assets/art/rooms/"+id+"-"+roomTier(id)+".webp"; }
 function upgradeRoom(id){
   const r=S.rooms[id], cost=roomCost(id,r.level);
   if(S.cash<cost){toast("Не хватает денег — загляните в магазин");return;}
-  S.cash-=cost; r.level++; addStat("upgrades",1);
+  S.cash-=cost; r.level++;
+  const p=ensureParts(r);
+  let key=PARTS[0].id, min=99;
+  for(const part of PARTS){ if((p[part.id]||0)<min){ min=p[part.id]||0; key=part.id; } }
+  if(min<PART_MAX) p[key]++;
+  addStat("upgrades",1);
   AU.ok(); confetti(); toast(ROOMS[id].name+" — уровень "+r.level);
   mark(); hud(); renderLabels(); renderRoomModal(id);
+  guideEvent("upgrade");
+}
+function upgradePart(arg){
+  const [id,part]=String(arg||"").split("|");
+  const r=S.rooms[id]; if(!r||!PARTS.some(p=>p.id===part)) return;
+  const p=ensureParts(r);
+  if(p[part]>=PART_MAX){ toast("Этот слой уже на максимуме"); return; }
+  const cost=partCost(p[part]);
+  if(S.cash<cost){ toast("Не хватает денег — в магазине всё бесплатно"); return; }
+  S.cash-=cost; p[part]++;
+  const sum=PARTS.reduce((n,x)=>n+(p[x.id]||0),0);
+  r.level=Math.max(r.level, 1+Math.floor(sum/2));
+  addStat("upgrades",1);
+  const meta=PARTS.find(x=>x.id===part);
+  AU.ok(); toast(ROOMS[id].name+": "+meta.name+" — "+p[part]);
+  mark(); hud(); updatePlates(); renderRoomModal(id);
   guideEvent("upgrade");
 }
 function upgradeChief(){
@@ -745,7 +864,7 @@ function maybeDaily(){
 /* ===== view ===== */
 function hud(){
   const pills=[["cash","💰",fmt(S.cash)],["gas","⛽",fmt(S.gas)],["ammo","🔫",fmt(S.ammo)],["elec","⚡",fmt(S.elec)],["diamonds","💎",fmt(S.diamonds)]];
-  $("#resrow").innerHTML=pills.map(([k,ic,v])=>`<div class="rpill" data-act="tab" data-arg="shop" data-testid="res-${k}"><span class="ic">${ic}</span>${v}<button class="plus" data-act="tab" data-arg="shop" aria-label="Магазин">+</button></div>`).join("");
+  $("#resrow").innerHTML=pills.map(([k,ic,v])=>`<button type="button" class="rpill" data-act="tab" data-arg="shop" data-testid="res-${k}" aria-label="${v}, открыть магазин"><span class="ic">${ic}</span><span class="rv">${v}</span></button>`).join("");
   $("#chiefLv").textContent=S.chiefLv;
   const sat=S.sat||0;
   $("#satfill").style.width=Math.min(100, sat/20)+"%";
@@ -756,116 +875,203 @@ function hud(){
   updateQuest();
 }
 
-function renderHotspots(){
-  const el=$("#hotspots");
-  el.innerHTML=ROOM_ORDER.map(id=>{
-    const d=ROOMS[id], locked=S.chiefLv<d.unlock;
-    const box=roomBox(id);
-    const lock=locked?`<div class="locktag"><span class="lk">🔒</span>${d.name}<br>откроется на ур. ${d.unlock}</div>`:"";
-    return `<div class="hotspot ${locked?"locked":""}" data-act="open" data-arg="${id}" data-testid="room-${id}"
-      style="left:${box.left};top:${box.top};width:${box.width};height:${box.height}">${lock}</div>`;
-  }).join("");
+function renderCampus(){
+  const el=$("#campus");
+  if(!el) return;
+  if(el.dataset.built==="1"){ updatePlates(); return; }
+  const byWing={1:[],2:[]};
+  for(const id of ROOM_ORDER){
+    const wing=LAYOUT[id].wing;
+    (byWing[wing]||(byWing[wing]=[])).push(id);
+  }
+  el.innerHTML=WINGS.map(w=>`
+    <section class="wing-block" data-wing="${w.id}">
+      <header class="wing-title"><b>${w.title}</b><span>${w.sub}</span></header>
+      ${(byWing[w.id]||[]).map(id=>{
+        const d=ROOMS[id];
+        return `<article class="plate" id="plate-${id}" data-room="${id}">
+          <div class="plate-top"><b class="plate-name">${PLATE_NAME[id]||d.name}</b><span class="plate-lv" data-lv="${id}"></span></div>
+          <i class="plate-wp" data-wp="${id}"></i>
+          <div class="plate-view" data-room="${id}">
+            <img class="plate-bg" alt="" draggable="false">
+            <div class="lacquer-floor"></div>
+            <div class="lacquer-walls"></div>
+            <div class="lacquer-furn"></div>
+            <div class="lacquer-decor"></div>
+            <div class="lacquer-light"></div>
+            <div class="dayshade"></div>
+            <div class="lamp lamp-${LAMP[id]||"warm"}"></div>
+            <div class="plate-people" data-room="${id}"></div>
+            <button type="button" class="plate-hit" data-act="open" data-arg="${id}" data-testid="room-${id}" aria-label="${d.name}"></button>
+            <div class="plate-lock" data-lock="${id}"></div>
+          </div>
+          <div class="plate-actions" data-actions="${id}"></div>
+        </article>`;
+      }).join("")}
+    </section>`).join("");
+  el.dataset.built="1";
+  updatePlates();
+  layoutPlates();
 }
-function renderLabels(){
-  const el=$("#labels");
-  const names={reception:"ПРИЁМНАЯ",detective:"ДЕТЕКТИВ",interrog:"ДОПРОСНАЯ",cells:"КАМЕРЫ",garage:"ГАРАЖ",
-    chief:"ШЕФ",armory:"ОРУЖЕЙНАЯ",electric:"ЩИТОВАЯ",suggest:"ПРЕДЛОЖЕНИЯ",gasstation:"ЗАПРАВКА",press:"ПРЕСС-ЦЕНТР"};
-  el.innerHTML=ROOM_ORDER.map(id=>{
-    const L=LAYOUT[id], d=ROOMS[id], locked=S.chiefLv<d.unlock;
-    const st=posStyle(L.wing,L.lx,L.ly);
-    const lv=locked?"":`<span class="lv">${S.rooms[id].level}</span>`;
-    const work=(!locked && S.rooms[id].work)?`<i class="wp" style="width:${Math.min(100,S.rooms[id].prog*100)}%"></i>`:"";
-    return `<div class="rlab" style="left:${st.left};top:${st.top}">${names[id]}${lv}${work}</div>`;
-  }).join("");
+function layoutPlates(){
+  document.querySelectorAll(".plate-view").forEach(view=>{
+    const W=view.clientWidth|0;
+    if(W<2) return;
+    const H=Math.max(200, Math.round(W*0.78));
+    if(view.dataset.h===String(H)) return;
+    view.style.height=H+"px";
+    view.dataset.h=String(H);
+  });
+}
+function updatePlates(){
+  if(!S) return;
+  for(const id of ROOM_ORDER){
+    const d=ROOMS[id], locked=S.chiefLv<d.unlock, plate=$("#plate-"+id);
+    if(!plate) continue;
+    plate.classList.toggle("locked", locked);
+    const view=plate.querySelector(".plate-view");
+    const parts=ensureParts(S.rooms[id]);
+    if(view){
+      view.dataset.floor=parts.floor;
+      view.dataset.walls=parts.walls;
+      view.dataset.light=parts.light;
+      view.dataset.furn=parts.furn;
+      view.dataset.decor=parts.decor;
+      view.dataset.tier=roomTier(id);
+      const img=view.querySelector(".plate-bg");
+      const src=roomArt(id);
+      if(img && img.dataset.src!==src){ img.src=src; img.dataset.src=src; }
+    }
+    const lv=plate.querySelector("[data-lv]");
+    if(lv) lv.textContent=locked?"":("ур. "+S.rooms[id].level);
+    const wp=plate.querySelector("[data-wp]");
+    if(wp){
+      const on=!locked && S.rooms[id].work;
+      wp.style.width=(on?Math.min(100, S.rooms[id].prog*100):0)+"%";
+      wp.style.opacity=on?"1":"0";
+    }
+    const lock=plate.querySelector("[data-lock]");
+    if(lock){
+      lock.innerHTML=locked?`<div class="lockcard"><span class="lk">🔒</span><b>${d.name}</b><span>Откроется на уровне ${d.unlock}</span></div>`:"";
+    }
+  }
+}
+function renderHotspots(){ renderCampus(); }
+function renderLabels(){ updatePlates(); }
+function fitChrome(){
+  const h=$("#topbar");
+  if(h) document.documentElement.style.setProperty("--hud-h", h.offsetHeight+"px");
+  layoutPlates();
 }
 
-function upsertActor(a, parent, extraClass){
-  let el=parent.querySelector('[data-id="'+a.id+'"]');
+function upsertActor(a){
+  const room=actorRoom(a);
+  const parent=platePeople(room);
+  if(!parent) return;
+  let el=document.querySelector('.actor[data-id="'+a.id+'"]');
   const shiny=a.kind==="hero" && HEROES[a.spr] && HEROES[a.spr].suit==="shiny";
-  const cls="actor "+(a.walk?"walk":"idle")+(a.wide?" wide":"")+(a.siren?" siren":"")+(shiny?" shiny":"")+(a.kind==="vip"?" vip":"")+(extraClass?(" "+extraClass):"");
+  const working=a.kind==="hero" && a.roam && S.rooms[a.roam] && S.rooms[a.roam].work;
+  const dye=a.kind==="hero" ? (S.heroes[a.spr]?.outfit||"black") : "black";
+  const flair=a.kind==="hero" ? heroFlair(a.spr||a.hid) : null;
+  const cls="actor "+(a.walk?"walk":"idle")+(working?" work":"")+(a.wide?" wide":"")+(a.siren?" siren":"")+(shiny?" shiny":"")+(a.kind==="vip"?" vip":"")+(a.flip?" flip":"")+(dye&&dye!=="black"?" dye-"+dye:"");
   if(!el){
     el=document.createElement("div");
     el.dataset.id=a.id;
     if(a.kind==="hero") el.dataset.hero=a.hid||a.spr;
-    if(a.kind==="vip"){ el.dataset.act="vip"; }
-    el.innerHTML=`<div class="say"></div><img alt=""><div class="nametag"></div>`;
-    if(a.pop){ el.classList.add("pop-in"); a.pop=false; setTimeout(()=>{ el.classList.remove("pop-in"); },700); }
-    parent.appendChild(el);
+    if(a.kind==="vip") el.dataset.act="vip";
+    el.innerHTML=`<div class="say"></div><div class="bob"><div class="flipbox"><img alt=""><i class="eyelid"></i></div></div><i class="medal"></i><i class="sash"></i><div class="nametag"></div>`;
+    if(a.pop){ el.classList.add("pop-in"); a.pop=false; setTimeout(()=>{ if(el) el.classList.remove("pop-in"); },700); }
   }
+  if(el.parentNode!==parent) parent.appendChild(el);
   if(a.pop){ el.classList.add("pop-in"); a.pop=false; setTimeout(()=>el.classList.remove("pop-in"),700); }
-  // keep pop-in class if animation running
   const popping=el.classList.contains("pop-in");
   el.className=cls+(popping?" pop-in":"");
-  const st=posStyle(a.wing||1, a.x, a.y);
+  if(flair){ el.dataset.ins=String(Math.min(6, flair.insignia)); el.dataset.acc=String(Math.min(6, flair.accessory)); }
+  else { el.dataset.ins="0"; el.dataset.acc="0"; }
+  if(!el.querySelector(".eyelid")){
+    const box=el.querySelector(".flipbox");
+    if(box) box.insertAdjacentHTML("beforeend", `<i class="eyelid"></i>`);
+  }
+  const st=localPos(room, a.x, a.y);
   el.style.left=st.left; el.style.top=st.top;
   const img=el.querySelector("img");
   let src="assets/sprites/"+(a.spr||"civ-man")+".webp";
   if(a.kind==="hero") src=heroSprite(a.spr, S.heroes[a.spr]?.outfit);
-  if(img.dataset.src!==src){ img.src=src; img.dataset.src=src; }
-  img.style.transform=a.flip?"scaleX(-1)":"";
+  if(img && img.dataset.src!==src){ img.src=src; img.dataset.src=src; }
   const sayEl=el.querySelector(".say");
-  if(a.say){ sayEl.hidden=false; sayEl.textContent=a.say; } else { sayEl.hidden=true; sayEl.textContent=""; }
+  if(sayEl){ if(a.say){ sayEl.hidden=false; sayEl.textContent=a.say; } else { sayEl.hidden=true; sayEl.textContent=""; } }
   const nt=el.querySelector(".nametag");
-  if(a.kind==="hero"){ nt.hidden=false; nt.textContent=(HEROES[a.hid||a.spr]||{}).name||""; }
-  else nt.hidden=true;
+  if(nt){
+    if(a.kind==="hero"){ nt.hidden=false; nt.textContent=(HEROES[a.hid||a.spr]||{}).name||""; }
+    else nt.hidden=true;
+  }
 }
 
 function renderActors(){
-  const el=$("#actors");
   const keep=new Set(["car"]);
-  // car
-  let car=el.querySelector('[data-id="car"]');
-  if(!car){
-    car=document.createElement("div"); car.dataset.id="car";
-    car.innerHTML=`<img alt="Патруль">`;
-    el.appendChild(car);
+  const garage=platePeople("garage");
+  if(garage){
+    let car=document.querySelector('.actor[data-id="car"]');
+    if(!car){
+      car=document.createElement("div");
+      car.dataset.id="car";
+      car.innerHTML=`<div class="bob"><div class="flipbox"><img alt="Патруль"></div></div>`;
+    }
+    if(car.parentNode!==garage) garage.appendChild(car);
+    const moving=S.car && S.car.state!=="idle";
+    car.className="actor wide"+(moving?" walk siren":" idle");
+    car.style.visibility=moving?"visible":"hidden";
+    const st=localPos("garage", (S.car&&S.car.x)||LAYOUT.garage.ax, (S.car&&S.car.y)||LAYOUT.garage.ay);
+    car.style.left=st.left; car.style.top=st.top;
+    const cimg=car.querySelector("img");
+    if(cimg && cimg.dataset.src!=="assets/sprites/car-police.webp"){
+      cimg.src="assets/sprites/car-police.webp"; cimg.dataset.src="assets/sprites/car-police.webp";
+    }
   }
-  const moving=S.car && S.car.state!=="idle";
-  car.className="actor wide"+(moving?" walk siren":" idle");
-  const cst=posStyle(1, (S.car&&S.car.x)||LAYOUT.garage.ax, (S.car&&S.car.y)||LAYOUT.garage.ay);
-  car.style.left=cst.left; car.style.top=cst.top;
-  const cimg=car.querySelector("img");
-  if(cimg.dataset.src!=="assets/sprites/car-police.webp"){ cimg.src="assets/sprites/car-police.webp"; cimg.dataset.src="assets/sprites/car-police.webp"; }
-
-  for(const a of S.actors){ keep.add(a.id); upsertActor(a, el); }
-  for(const node of [...el.children]){
+  for(const a of S.actors){ keep.add(a.id); upsertActor(a); }
+  document.querySelectorAll(".plate-people .actor").forEach(node=>{
     if(!keep.has(node.dataset.id)) node.remove();
-  }
+  });
 }
 
 function renderBubbles(){
-  const el=$("#bubbles");
-  const bits=[];
+  const bits={};
   const add=(id,text,cls,act,arg,tid)=>{
-    const L=LAYOUT[id];
-    const st=posStyle(L.wing, L.lx, Math.min(95,L.ly+14));
-    bits.push(`<button class="abub ${cls||""}" data-act="${act}" data-arg="${arg||id}" data-testid="${tid||("bub-"+id)}" style="left:${st.left};top:${st.top}">${text}</button>`);
+    (bits[id]=bits[id]||[]).push(`<button type="button" class="abub ${cls||""}" data-act="${act}" data-arg="${arg==null?id:arg}" data-testid="${tid||("bub-"+id)}">${text}</button>`);
   };
   const rr=S.rooms;
-  if(S.riot) add("cells","БУНТ! НАЖМИТЕ","red","open","cells","bub-riot");
+  if(S.riot) add("cells","Бунт! Нажмите, чтобы подавить","red","open","cells","bub-riot");
   else{
-    if(rr.reception.out>0) add("reception","ДОКУМЕНТЫ<small>отправить детективу</small>","gold","collect","reception","bub-docs");
-    if(rr.detective.out>0) add("detective","ОРДЕР<small>активировать</small>","gold","collect","detective","bub-warrant");
-    if(!rr.reception.hero) add("reception","ПОСАДИТЬ ДЕЖУРНУЮ<small>за стол</small>","gold","open","reception","bub-seat-rec");
-    if(!rr.detective.hero) add("detective","ПОСАДИТЬ ДЕТЕКТИВА<small>за стол</small>","gold","open","detective","bub-seat-det");
-    else if(rr.detective.in>0 && !rr.detective.work) add("detective","РАССЛЕДОВАТЬ","gold","open","detective","bub-invest");
-    if(rr.garage.in>0 && !rr.garage.work && S.car.state==="idle") add("garage","ПАТРУЛЬ<small>отправить машину</small>","gold","startpatrol","garage","bub-patrol");
-    if(rr.garage.out>0) add("garage","ПОДОЗРЕВАЕМЫЙ<small>вести на допрос</small>","gold","collect","garage","bub-suspect");
-    if(rr.interrog.in>0) add("interrog","ДОПРОС ПРОВЕСТИ","red","iq","","bub-iq");
-    if(rr.interrog.out>0) add("interrog","В КАМЕРУ","gold","tocell","","bub-cell");
-    if(rr.cells.pending>=20) add("cells","ЗАБРАТЬ "+fmt(rr.cells.pending|0)+" ₽","gold","collect","cells","bub-cash");
-    if(rr.armory.out>0 && S.chiefLv>=2) add("armory","ПАТРОНЫ +"+rr.armory.out,"gold","collect","armory");
-    if(rr.electric.out>0 && S.chiefLv>=3) add("electric","ЭНЕРГИЯ +"+rr.electric.out,"gold","collect","electric");
-    if(rr.gasstation.out>0 && S.chiefLv>=5) add("gasstation","БЕНЗИН +"+rr.gasstation.out,"gold","collect","gasstation");
-    if(S.suggestReady && S.chiefLv>=3) add("suggest","ПРЕДЛОЖЕНИЕ","gold","suggest","");
-    if(S.actors.some(a=>a.kind==="vip")) add("reception","VIP ГОСТЬ<small>нажмите на гостя</small>","gold","vip","","bub-vip");
+    if(rr.reception.out>0) add("reception","Документы<small>отправить детективу</small>","gold","collect","reception","bub-docs");
+    if(rr.detective.out>0) add("detective","Ордер<small>активировать</small>","gold","collect","detective","bub-warrant");
+    if(!rr.reception.hero) add("reception","Посадить дежурную<small>за стол</small>","gold","open","reception","bub-seat-rec");
+    if(!rr.detective.hero) add("detective","Посадить детектива<small>за стол</small>","gold","open","detective","bub-seat-det");
+    else if(rr.detective.in>0 && !rr.detective.work) add("detective","Расследовать","gold","open","detective","bub-invest");
+    if(rr.garage.in>0 && !rr.garage.work && S.car.state==="idle") add("garage","Патруль<small>отправить машину</small>","gold","startpatrol","garage","bub-patrol");
+    if(rr.garage.out>0) add("garage","Подозреваемый<small>вести на допрос</small>","gold","collect","garage","bub-suspect");
+    if(rr.interrog.in>0) add("interrog","Провести допрос","red","iq","","bub-iq");
+    if(rr.interrog.out>0) add("interrog","В камеру","gold","tocell","","bub-cell");
+    if(rr.cells.pending>=20) add("cells","Забрать "+fmt(rr.cells.pending|0)+" ₽","gold","collect","cells","bub-cash");
+    if(rr.armory.out>0 && S.chiefLv>=2) add("armory","Патроны +"+rr.armory.out,"gold","collect","armory");
+    if(rr.electric.out>0 && S.chiefLv>=3) add("electric","Энергия +"+rr.electric.out,"gold","collect","electric");
+    if(rr.gasstation.out>0 && S.chiefLv>=5) add("gasstation","Бензин +"+rr.gasstation.out,"gold","collect","gasstation");
+    if(S.suggestReady && S.chiefLv>=3) add("suggest","Забрать предложение","gold","suggest","");
+    if(S.actors.some(a=>a.kind==="vip")) add("reception","VIP-гость<small>нажмите, чтобы принять</small>","gold","vip","","bub-vip");
   }
-  const html=bits.join("");
-  if(el.dataset.sig!==html){ el.dataset.sig=html; el.innerHTML=html; }
+  for(const id of ROOM_ORDER){
+    const host=document.querySelector('[data-actions="'+id+'"]');
+    if(!host) continue;
+    const html=(bits[id]||[]).join("");
+    if(host.dataset.sig!==html){ host.dataset.sig=html; host.innerHTML=html; }
+  }
 }
 
 /* ===== sheets / shop / heroes ===== */
+function sheetHTML(html){
+  return `<button type="button" class="back-station" data-act="tab" data-arg="station" data-testid="back-station">← На участок</button>`+html;
+}
 function setTab(t){
+  if(t===TAB && t!=="station") t="station";
   TAB=t;
   $$("#tabs .tab").forEach(b=>b.classList.toggle("on", b.dataset.arg===t));
   const sheet=$("#sheet");
@@ -874,23 +1080,47 @@ function setTab(t){
     sheet.classList.remove("hidden");
     if(t==="heroes") renderHeroes();
     else if(t==="tasks") renderTasks();
+    else if(t==="upgrades") renderUpgrades();
     else if(t==="shop"){ addStat("shopVisits",1); renderShop(); }
   }
   guideEvent("tab:"+t);
   updateQuest();
 }
+function partButtons(id){
+  const p=ensureParts(S.rooms[id]);
+  return `<div class="sec">Слои комнаты — каждый виден сразу</div><div class="parts">`+PARTS.map(part=>{
+    const lv=p[part.id]||0, max=lv>=PART_MAX, cost=partCost(lv);
+    return `<button type="button" class="part ${max?"max":""}" data-act="uppart" data-arg="${id}|${part.id}" ${max?"disabled":""} data-testid="part-${id}-${part.id}">
+      <b>${part.icon} ${part.name}</b>
+      <span>${"◆".repeat(lv)}${"◇".repeat(PART_MAX-lv)} ${part.hint}</span>
+      <em>${max?"максимум":"улучшить за "+fmt(cost)+" ₽"}</em>
+    </button>`;
+  }).join("")+`</div>`;
+}
+function renderUpgrades(){
+  const cards=ROOM_ORDER.map(id=>{
+    const d=ROOMS[id];
+    if(S.chiefLv<d.unlock) return `<div class="task"><div class="tn">${d.name}</div><div class="ms">Откроется на уровне шефа ${d.unlock}</div></div>`;
+    return `<div class="task"><div class="tn">${d.name} · общий ур. ${S.rooms[id].level}</div>
+      <img class="up-preview" src="${roomArt(id)}" alt="">
+      ${partButtons(id)}
+    </div>`;
+  }).join("");
+  $("#sheet").innerHTML=sheetHTML(`<div class="sheet-h">Улучшения</div>
+    <div class="sheet-sub">Пол, стены, свет, мебель и декор меняют комнату. Общий уровень по-прежнему ускоряет работу.</div>`+cards);
+}
 function renderShop(){
   const outfitBlock=`<div class="sec">Форма героинь</div>
     <div class="ms">Цвета формы бесплатно. Откройте карточку героини и выберите чёрный, красный, фиолетовый или белый.</div>
     <div class="outfits" style="justify-content:center;margin:8px 0 16px">${OUTFIT_COLORS.map(c=>`<button class="osw" data-c="${c.id}" title="${c.name}" style="background:${c.css}" data-act="tab" data-arg="heroes"></button>`).join("")}</div>`;
-  $("#sheet").innerHTML=`<div class="sheet-h">Магазин</div><div class="sheet-sub">Всё бесплатно, без таймеров и ограничений. Берите сколько нужно.</div>`+
+  $("#sheet").innerHTML=sheetHTML(`<div class="sheet-h">Магазин</div><div class="sheet-sub">Всё бесплатно, без таймеров и ограничений. Берите сколько нужно.</div>`+
     outfitBlock+
     SHOP.map(sec=>`<div class="sec">${sec.cat}</div>`+sec.items.map(it=>`
       <div class="si" data-testid="shop-${it.id}">
         <div class="sic">${it.icon}</div>
         <div class="sn"><b>${it.name}</b><span>${it.sub}</span></div>
         <button class="btn" data-act="buy" data-arg="${it.id}" data-testid="buy-${it.id}">БЕСПЛАТНО</button>
-      </div>`).join("")).join("");
+      </div>`).join("")).join(""));
 }
 function buy(id){
   let item=null;
@@ -900,12 +1130,12 @@ function buy(id){
   if(item.give){ for(const [k,v] of Object.entries(item.give)) addRes(k,v); toast("Получено: "+item.name); }
   else if(item.special==="fund"){ if(!S.fund){S.fund=true;toast("Фонд роста активен: +50% к доходу");} else {addRes("cash",15000);toast("Фонд уже активен, +15 000 ₽");} }
   else if(item.special==="pass"){ S.pass=true; addRes("cash",15000); addRes("diamonds",1500); addRes("gas",200); addRes("ammo",200); addRes("elec",200); toast("Пропуск активирован, все награды получены"); }
-  else if(item.special==="vip"){ S.vip=Math.min(10,S.vip+1); addRes("cash",5000*S.vip); addRes("diamonds",200*S.vip); toast("VIP "+S.vip+"!"); }
+  else if(item.special==="vip"){ S.vip=(S.vip||0)+1; addRes("cash",5000*S.vip); addRes("diamonds",200*S.vip); toast("VIP "+S.vip+"!"); }
   else if(item.special==="queue"){ S.secondQueue=true; toast("Вторая очередь включена"); }
   else if(item.special==="skip"){ skipAll(); toast("Все дела завершены"); }
   else if(item.special==="boost"){ S.buffs.boost=true; toast("Заряд скорости навсегда"); }
   else if(item.special==="gacha"){ doGacha(item.arg); return; }
-  mark(); hud(); if(TAB==="shop") renderShop();
+  mark(); hud(); if(TAB==="shop") renderShop(); save();
 }
 function skipAll(){
   for(const id of ROOM_ORDER){
@@ -957,10 +1187,11 @@ function doGacha(mode){
   setTimeout(()=>{ const f=$("#gflip"); if(f) f.classList.add("on"); }, 280);
   setTimeout(()=>{ ["gname","grar","ghow"].forEach(id=>{ const e=$("#"+id); if(e) e.style.opacity=1; }); AU.appear(); }, 900);
   if(TAB==="heroes") renderHeroes();
+  save();
 }
 function renderHeroes(){
   const owned=HERO_ORDER.filter(id=>S.heroes[id].owned).length;
-  $("#sheet").innerHTML=`<div class="sheet-h">Героини</div>
+  $("#sheet").innerHTML=sheetHTML(`<div class="sheet-h">Героини</div>
     <div class="sheet-sub">В отделе ${owned} из ${HERO_ORDER.length}. Нажмите героиню и посадите её за стол — она сразу появится в комнате.</div>
     <div class="gacha">
       <div class="gbtn"><b>Обычный набор</b><span>случайная героиня</span><button class="btn" data-act="buy" data-arg="h1" data-testid="gacha-1">БЕСПЛАТНО</button></div>
@@ -982,7 +1213,7 @@ function renderHeroes(){
         <div class="lv">ур. ${h.level}</div>
         <div class="hb"><div class="hn">${def.name}</div><div class="hr">${def.role}${h.assigned?" · "+ROOMS[h.assigned].name:""}</div>
         <div class="stars">${stars}</div></div></div>`;
-    }).join("")}</div>`;
+    }).join("")}</div>`);
 }
 function openHero(id){
   const def=HEROES[id], h=S.heroes[id], rar=RAR[def.rarity];
@@ -1010,7 +1241,8 @@ function openHero(id){
     <div class="statg"><div class="stat"><b>${h.level}</b><span>уровень</span></div><div class="stat"><b>${h.stars||0}/5</b><span>звёзды</span></div></div>
     <div class="sec">Посадить за стол</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${rooms}</div>
-    <button class="btn wide" data-act="uphero" data-arg="${id}" data-testid="up-hero">Улучшить за ${fmt(cost)} ₽</button>
+    ${trackButtons(id)}
+    <button class="btn wide" data-act="uphero" data-arg="${id}" data-testid="up-hero">Общий уровень за ${fmt(cost)} ₽</button>
     <button class="btn grey wide" data-act="close">Закрыть</button>`);
 }
 function setOutfit(arg){
@@ -1021,12 +1253,43 @@ function setOutfit(arg){
   openHero(id);
   toast(HEROES[id].name+": "+(OUTFIT_COLORS.find(c=>c.id===color)||{}).name+" форма");
 }
+function ensureTracks(h){
+  if(!h.tracks) h.tracks={uniform:0,insignia:0,accessory:0};
+  return h.tracks;
+}
+function trackButtons(id){
+  const h=S.heroes[id], t=ensureTracks(h);
+  const rows=[["uniform","Форма","новый лаковый костюм"],["insignia","Знаки","нашивки и медали"],["accessory","Аксессуары","плащ, пояс, блеск"]];
+  return `<div class="sec">Отдельные уровни</div><div class="parts">`+rows.map(([k,name,sub])=>{
+    const lv=t[k]||0, cost=heroCost(h.level);
+    return `<button type="button" class="part" data-act="uptrack" data-arg="${id}|${k}" data-testid="track-${k}">
+      <b>${name} · ${lv}</b><span>${sub}</span><em>ещё за ${fmt(cost)} ₽</em>
+    </button>`;
+  }).join("")+`</div>`;
+}
 function upHero(id){
   const h=S.heroes[id]; if(!h?.owned)return;
   const cost=heroCost(h.level);
   if(S.cash<cost){toast("Не хватает денег — возьмите в магазине бесплатно");return;}
   S.cash-=cost; h.level=Math.min(50,h.level+1); addStat("heroActs",1);
-  AU.ok(); toast(HEROES[id].name+" — уровень "+h.level); mark(); hud(); openHero(id);
+  const order=["uniform","insignia","accessory"];
+  const t=ensureTracks(h);
+  t[order[(h.level-1)%3]]=(t[order[(h.level-1)%3]]||0)+1;
+  AU.ok(); toast(HEROES[id].name+" — уровень "+h.level); mark(); hud(); spawnStaff(); openHero(id);
+}
+function upTrack(arg){
+  const [id,track]=String(arg||"").split("|");
+  const h=S.heroes[id]; if(!h?.owned) return;
+  if(!["uniform","insignia","accessory"].includes(track)) return;
+  const cost=heroCost(h.level);
+  if(S.cash<cost){toast("Не хватает денег — возьмите в магазине бесплатно");return;}
+  S.cash-=cost;
+  const t=ensureTracks(h);
+  t[track]=(t[track]||0)+1;
+  h.level=Math.min(50, h.level+1);
+  addStat("heroActs",1);
+  const label={uniform:"новый лаковый костюм",insignia:"новые знаки",accessory:"новый аксессуар"}[track];
+  AU.ok(); toast(HEROES[id].name+": "+label); mark(); hud(); spawnStaff(); openHero(id);
 }
 function assignHero(arg){
   const [id,room]=arg.split("|");
@@ -1076,10 +1339,10 @@ function renderTasks(){
     return `<div class="ach ${got?"got":""}"><div class="ic">${got?"🏆":"🔒"}</div>
       <div class="sn"><b>${a.name}</b><span>${a.desc}</span></div></div>`;
   }).join("");
-  $("#sheet").innerHTML=`<div class="sheet-h">Задания</div>
+  $("#sheet").innerHTML=sheetHTML(`<div class="sheet-h">Задания</div>
     <div class="sheet-sub">Ежедневные поручения. Награды можно забирать сразу.</div>`+tasks+
     `<button class="btn grey wide" data-act="claimall">Забрать всё выполненное</button>
-    <div class="sec">Достижения</div>`+ach;
+    <div class="sec">Достижения</div>`+ach);
 }
 function claimTask(id){
   const t=TASKS.find(x=>x.id===id); if(!t||S.tasks.claimed[t.id]) return;
@@ -1208,7 +1471,8 @@ function renderRoomModal(id){
     ${asg}
     ${seatPicker(id)}
     ${body}
-    ${d.kind!=="mailbox"&&d.kind!=="orders"?`<button class="btn blue wide" data-act="uproom" data-arg="${id}" data-testid="up-room">Улучшить за ${fmt(cost)} ₽</button>`:""}
+    ${partButtons(id)}
+    ${d.kind!=="mailbox"&&d.kind!=="orders"?`<button class="btn blue wide" data-act="uproom" data-arg="${id}" data-testid="up-room">Общий уровень за ${fmt(cost)} ₽</button>`:""}
     ${actions}
     <button class="btn grey wide" data-act="close">Закрыть</button>`);
 }
@@ -1270,6 +1534,8 @@ function onAct(act,arg){
     case "buy": buy(arg); break;
     case "hero": openHero(arg); break;
     case "uphero": upHero(arg); break;
+    case "uptrack": upTrack(arg); break;
+    case "uppart": upgradePart(arg); break;
     case "assign": assignHero(arg); break;
     case "outfit": setOutfit(arg); break;
     case "claim": claimTask(arg); break;
@@ -1380,7 +1646,7 @@ const QUEST_CHAIN = [
     nika:"Нажмите табличку в камерах (или саму комнату) и заберите доход.",
     sel:'[data-testid="bub-cash"], [data-testid="collect-cash"], [data-testid="room-cells"]',
     room:"cells", wait:"collect:cells",
-    done:()=> !!(S.questFlags&&S.questFlags.income) || (S.stats.cashGot||0)>0,
+    done:()=> !!(S.questFlags&&S.questFlags.income),
     enter(){ if((S.rooms.cells.pending||0)<40) S.rooms.cells.pending=(S.rooms.cells.pending||0)+80; },
     praise:"Отличный доход! Давайте улучшим комнату.", reward:300},
   {id:"upgrade", title:"Улучши комнату",
@@ -1595,8 +1861,17 @@ function placePointer(){
   const r=el.getBoundingClientRect();
   if(r.width<2){ hide(); return; }
   p.classList.remove("hidden");
-  p.style.left=(r.left+r.width/2)+"px";
-  p.style.top=(r.bottom-6)+"px";
+  const short=r.height>0 && r.height<96;
+  if(short){
+    p.style.left=(r.left+r.width/2)+"px";
+    p.style.top=Math.max(72, r.top-46)+"px";
+  }else{
+    const visTop=Math.max(r.top, 120);
+    const visBot=Math.min(r.bottom, innerHeight-96);
+    const cy=visBot>visTop ? (visTop+visBot)/2 : (r.top+r.height/2);
+    p.style.left=(r.left+r.width/2)+"px";
+    p.style.top=cy+"px";
+  }
   if(ring){
     const pad=10;
     ring.classList.remove("hidden");
@@ -1634,16 +1909,15 @@ async function start(){
     ...HERO_ORDER.map(id=>"assets/sprites/"+id+".webp")
   ];
   let n=0;
-  const set=()=>{n++; ld.style.width=Math.round(10+n/assets.length*90)+"%"; txt.textContent="Загрузка "+n+"/"+assets.length;};
-  await document.fonts.ready;
-  await Promise.all(assets.map(src=>new Promise(res=>{const i=new Image();i.onload=i.onerror=()=>{set();res();};i.src=src;})));
+  const set=()=>{n++; if(ld) ld.style.width=Math.round(10+n/assets.length*90)+"%"; if(txt) txt.textContent="Загрузка "+n+"/"+assets.length;};
+  const race=(p,ms)=>Promise.race([p, new Promise(res=>setTimeout(res, ms))]);
+  await race(document.fonts.ready.catch(()=>{}), 2500);
+  await race(Promise.all(assets.map(src=>new Promise(res=>{const i=new Image(); const done=()=>{set();res();}; i.onload=i.onerror=done; i.src=src;}))), 8000);
   const existed=load();
   AU.muted=!!S.muted;
   hud();
   spawnStaff();
-  renderHotspots();
-  renderLabels();
-  renderActors();
+  renderCampus();
   renderBubbles();
 
   const stage=$("#stage"), hint=$("#hint");
@@ -1679,6 +1953,17 @@ async function start(){
 
   $("#loading").classList.add("hidden");
   $("#game").classList.remove("hidden");
+  renderActors();
+  fitChrome();
+  requestAnimationFrame(()=>{ fitChrome(); renderActors(); });
+  if(window.ResizeObserver){
+    const ro=new ResizeObserver(()=>fitChrome());
+    const stageElNow=$("#stage"), topEl=$("#topbar");
+    if(stageElNow) ro.observe(stageElNow);
+    if(topEl) ro.observe(topEl);
+  }
+  window.addEventListener("resize", fitChrome);
+  window.addEventListener("orientationchange", ()=>setTimeout(fitChrome, 250));
   requestAnimationFrame(frame);
 
   syncQuestFromState();
@@ -1700,7 +1985,7 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
       if(refreshing) return; refreshing=true; location.reload();
     });
-    navigator.serviceWorker.register("sw.js?v=7").then(reg=>{
+    navigator.serviceWorker.register("sw.js?v=9").then(reg=>{
       setInterval(()=>reg.update(), 60*1000);
       reg.addEventListener("updatefound",()=>{
         const w=reg.installing;

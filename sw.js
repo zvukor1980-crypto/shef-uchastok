@@ -1,6 +1,6 @@
-/* v11: app-scoped caches, bounded network waits, offline shell fallback. */
-const CACHE='policeuch-v11';
-const SHELL=['./','./index.html','./style.css?v=11','./data.js?v=11','./game.js?v=11','./manifest.webmanifest?v=11'];
+/* v12: app-scoped caches, bounded network waits, offline shell fallback. */
+const CACHE='policeuch-v12';
+const SHELL=['./','./index.html','./style.css?v=12','./data.js?v=12','./game.js?v=12','./manifest.webmanifest?v=12'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   await cache.addAll(SHELL);

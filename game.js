@@ -761,9 +761,9 @@ function renderHotspots(){
     const d=ROOMS[id], locked=S.chiefLv<d.unlock;
     const box=roomBox(id);
     const lock=locked?`<div class="locktag"><span class="lk">🔒</span>${d.name}<br>откроется на ур. ${d.unlock}</div>`:"";
-    const tier=locked?"tier-locked":(S.rooms[id].level>=10?"tier-legend":S.rooms[id].level>=7?"tier-diamond":S.rooms[id].level>=4?"tier-gold":S.rooms[id].level>=2?"tier-silver":"tier-base");
+    const tier=locked?"tier-locked":(S.rooms[id].level>=8?"tier-diamond":S.rooms[id].level>=4?"tier-gold":S.rooms[id].level>=2?"tier-silver":"tier-base");
     return `<div class="hotspot ${locked?"locked":""} ${tier}" data-act="open" data-arg="${id}" data-testid="room-${id}"
-      style="left:${box.left};top:${box.top};width:${box.width};height:${box.height}"><span class="room-glass" aria-hidden="true"><i class="glass-wall"></i><i class="glass-window"></i><i class="glass-desk"></i><i class="glass-lamp"></i></span>${lock}</div>`;
+      style="left:${box.left};top:${box.top};width:${box.width};height:${box.height}">${lock}</div>`;
   }).join("");
 }
 function renderLabels(){

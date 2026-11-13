@@ -571,7 +571,7 @@ function renderIQ(){
   const def=HEROES[IQ.hid]||HEROES.anna;
   const cs=IQ.cs;
   const spr=heroSprite(def.id, S.heroes[def.id]?.outfit);
-  const sus=cs.suspect||"suspect-f";
+  const sus="suspect-f";
   const line = IQ.round===1 ? (cs.line||pick(SAY.iqOpen)) : (IQ.lastLine||pick(SAY.iqOpen));
   $("#iq").classList.remove("hidden");
   $("#iq").style.display="";
@@ -584,7 +584,7 @@ function renderIQ(){
       <div class="iq-meter"><div class="mlab"><span>Давление</span><span>Доверие</span></div><div class="mbar"><i style="width:${IQ.meter}%"></i></div></div>
       <div class="iq-pair">
         <div class="iq-card"><img src="${spr}" alt="${def.name}"><b>${def.name}</b></div>
-        <div class="iq-card"><img src="assets/sprites/${sus}.webp" alt=""><b>${cs.boss?"Особо опасный":"Подозреваемый"}</b></div>
+        <div class="iq-card"><img src="assets/sprites/${sus}.webp" alt=""><b>${cs.boss?"Особо опасный":"Подозреваемая"}</b></div>
       </div>
       <div class="iq-line" id="iqline">${line}</div>
       <div class="iq-clue">${cs.story}</div>
@@ -645,7 +645,7 @@ function finishIQ(){
     if(IQ.cs) IQ.cs.stage="done";
   } else {
     S.combo=0;
-    toast("Подозреваемый не раскололся — дело слабое.");
+    toast("Подозреваемая не раскололся — дело слабое.");
   }
   AU.ok(); shake(); mark(); hud();
   const starStr="★★★".slice(0,stars)+"☆☆☆".slice(stars);
@@ -853,7 +853,7 @@ function renderBubbles(){
     if(!rr.detective.hero) add("detective","ПОСАДИТЬ ДЕТЕКТИВА<small>за стол</small>","gold","open","detective","bub-seat-det");
     else if(rr.detective.in>0 && !rr.detective.work) add("detective","РАССЛЕДОВАТЬ","gold","open","detective","bub-invest");
     if(rr.garage.in>0 && !rr.garage.work && S.car.state==="idle") add("garage","ПАТРУЛЬ<small>отправить машину</small>","gold","startpatrol","garage","bub-patrol");
-    if(rr.garage.out>0) add("garage","ПОДОЗРЕВАЕМЫЙ<small>вести на допрос</small>","gold","collect","garage","bub-suspect");
+    if(rr.garage.out>0) add("garage","ПОДОЗРЕВАЕМАЯ<small>вести на допрос</small>","gold","collect","garage","bub-suspect");
     if(rr.interrog.in>0) add("interrog","ДОПРОС ПРОВЕСТИ","red","iq","","bub-iq");
     if(rr.interrog.out>0) add("interrog","В КАМЕРУ","gold","tocell","","bub-cell");
     if(rr.cells.pending>=20) add("cells","ЗАБРАТЬ "+fmt(rr.cells.pending|0)+" ₪","gold","collect","cells","bub-cash");
@@ -1113,7 +1113,7 @@ function claimAll(){
 const FLAVOR={
   reception:"Жители подают заявления. Дежурная оформляет документы и передаёт их детективу.",
   detective:"Детектив изучает документы и готовит ордер на арест. Посадите сотрудницу за этот стол — она сразу появится в кабинете.",
-  garage:"По ордеру патрульная машина выезжает в город и привозит подозреваемого.",
+  garage:"По ордеру патрульная машина выезжает в город и привозит подозреваемую.",
   interrog:"Три раунда допроса: запугать, уговорить или показать улики. Поймайте момент на шкале — будет бонус.",
   cells:"Заключённые содержатся здесь и приносят участку деньги. Если камеры переполнены, возможен бунт.",
   chief:"Отсюда вы руководите участком. Повышение уровня открывает новые комнаты ниже по экрану.",
@@ -1366,17 +1366,17 @@ const QUEST_CHAIN = [
     done:()=> (S.stats.patrols||0)>0 || S.car.state!=="idle" || S.rooms.garage.out>0,
     praise:"Патруль выехал. Подождём, когда машина вернётся.", reward:200},
   {id:"wait-car", title:"Дождись патруль",
-    nika:"Машина уже в пути. Как вернётся — нажмите табличку «Подозреваемый».",
+    nika:"Машина уже в пути. Как вернётся — нажмите табличку «Подозреваемая».",
     sel:'[data-testid="bub-suspect"], [data-testid="room-garage"]',
     room:"garage", wait:"carback|collect:garage",
     done:()=> S.rooms.garage.out>0 || S.rooms.interrog.in>0,
     praise:"Патруль вернулся с подозреваемым!", reward:100},
-  {id:"suspect", title:"Ведите подозреваемого на допрос",
-    nika:"Нажмите табличку «Подозреваемый», чтобы отвести его в допросную.",
+  {id:"suspect", title:"Ведите подозреваемую на допрос",
+    nika:"Нажмите табличку «Подозреваемая», чтобы отвести его в допросную.",
     sel:'[data-testid="bub-suspect"], [data-testid="collect-room"]',
     room:"garage", wait:"collect:garage",
     done:()=> S.rooms.interrog.in>0,
-    praise:"Подозреваемый в допросной. Начинаем допрос!", reward:200},
+    praise:"Подозреваемая в допросной. Начинаем допрос!", reward:200},
   {id:"iq", title:"Проведи допрос",
     nika:"Нажмите «Допрос провести». Три раунда: запугать, уговорить или улики. Поймайте зелёную зону!",
     sel:'[data-testid="bub-iq"], [data-testid="start-iq"]',
@@ -1384,7 +1384,7 @@ const QUEST_CHAIN = [
     done:()=> (S.stats.interrogs||0)>0,
     praise:"Допрос удался! Теперь отправьте его в камеру.", reward:400},
   {id:"cell", title:"Отправь в камеру",
-    nika:"Нажмите табличку «В камеру», чтобы разместить задержанного.",
+    nika:"Нажмите табличку «В камеру», чтобы разместить задержанную.",
     sel:'[data-testid="bub-cell"], [data-testid="room-interrog"]',
     room:"interrog", wait:"tocell",
     done:()=> (S.rooms.cells.in||0)>0,
@@ -1444,9 +1444,9 @@ function ongoingQuest(){
   if(S.riot) return {title:"Подави бунт в камерах", nika:"В камерах бунт! Нажмите красную табличку и подавите его.", sel:'[data-testid="bub-riot"], [data-testid="room-cells"]', room:"cells"};
   if(!rr.reception.hero) return {title:"Посади дежурную за стол", nika:"В приёмной пустой стол. Откройте комнату и посадите сотрудницу.", sel:'[data-testid="bub-seat-rec"], [data-testid="room-reception"]', room:"reception"};
   if(!rr.detective.hero) return {title:"Посади детектива за стол", nika:"Детективу нужен сыщик. Откройте кабинет и посадите героиню.", sel:'[data-testid="bub-seat-det"], [data-testid="room-detective"]', room:"detective"};
-  if(rr.interrog.in>0) return {title:"Проведи допрос", nika:"Подозреваемый ждёт. Нажмите «Допрос провести».", sel:'[data-testid="bub-iq"], [data-testid="start-iq"]', room:"interrog"};
+  if(rr.interrog.in>0) return {title:"Проведи допрос", nika:"Подозреваемая ждёт. Нажмите «Допрос провести».", sel:'[data-testid="bub-iq"], [data-testid="start-iq"]', room:"interrog"};
   if(rr.interrog.out>0) return {title:"Отправь в камеру", nika:"Допрос окончен. Нажмите «В камеру».", sel:'[data-testid="bub-cell"]', room:"interrog"};
-  if(rr.garage.out>0) return {title:"Ведите подозреваемого на допрос", nika:"Патруль вернулся. Нажмите табличку «Подозреваемый».", sel:'[data-testid="bub-suspect"]', room:"garage"};
+  if(rr.garage.out>0) return {title:"Ведите подозреваемую на допрос", nika:"Патруль вернулся. Нажмите табличку «Подозреваемая».", sel:'[data-testid="bub-suspect"]', room:"garage"};
   if(rr.garage.in>0 && S.car.state==="idle") return {title:"Отправь патруль", nika:"Ордер готов. Нажмите табличку «Патруль».", sel:'[data-testid="bub-patrol"]', room:"garage"};
   if(rr.detective.out>0) return {title:"Активируй ордер", nika:"Нажмите золотую табличку «Ордер».", sel:'[data-testid="bub-warrant"]', room:"detective"};
   if(rr.reception.out>0) return {title:"Отправь документы детективу", nika:"Нажмите табличку «Документы».", sel:'[data-testid="bub-docs"]', room:"reception"};

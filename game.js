@@ -586,21 +586,20 @@ function renderIQ(){
   if(!IQ) return;
   const def=HEROES[IQ.hid]||HEROES.anna;
   const cs=IQ.cs;
-  const spr=heroSprite(def.id, S.heroes[def.id]?.outfit);
   const sus=cs.suspect||"roni";
   const line = IQ.round===1 ? (cs.line||pick(SAY.iqOpen)) : (IQ.lastLine||pick(SAY.iqOpen));
   $("#iq").classList.remove("hidden");
   $("#iq").style.display="";
   $("#iq").innerHTML=`
     <button type="button" class="close" data-act="iqclose" data-testid="iq-close" aria-label="Закрыть">✕</button>
-    <div class="iq-bg"><img src="assets/rooms/interrog-bg.webp" alt=""></div>
+    <div class="iq-bg"></div>
     <div class="iq-ui">
       ${cs.boss?'<div class="iq-boss">⚠ ОСОБО ОПАСНАЯ</div>':''}
       <div class="iq-round">Раунд ${IQ.round} из ${IQ.total} · ${cs.title}</div>
       <div class="iq-meter"><div class="mlab"><span>Давление</span><span>Доверие</span></div><div class="mbar"><i style="width:${IQ.meter}%"></i></div></div>
       <div class="iq-pair">
-        <div class="iq-card"><img src="${spr}" alt="${def.name}"><b>${def.name}</b></div>
-        <div class="iq-card"><img src="assets/cast/suspect/${sus}.webp" alt="" onerror="this.onerror=null;this.src='assets/cast/suspect/roni.webp'"><b>${cs.boss?"Особо опасная":"Подозреваемая"}</b></div>
+        <div class="iq-card">${faceTag(def.id, S.heroes[def.id]?.outfit)}<b>${def.name}</b></div>
+        <div class="iq-card">${faceTag(sus, "suspect")}<b>${cs.boss?"Особо опасная":"Подозреваемая"}</b></div>
       </div>
       <div class="iq-line" id="iqline">${line}</div>
       <div class="iq-clue">${cs.story}</div>
@@ -610,7 +609,18 @@ function renderIQ(){
         <button class="btn" data-act="iqpick" data-arg="talk" data-testid="tactic-talk">🤝 Уговорить</button>
         <button class="btn blue" data-act="iqpick" data-arg="clue" data-testid="tactic-clue">🔎 Улики</button>
       </div>
-    </div>`;
+      </div>`;
+  paintCast($("#iq"));
+}
+function faceTag(who, style, extra){
+  const raw=style||"patrol";
+  const special=raw==="civ"||raw==="suspect"||raw==="inmate"||raw==="vip";
+  const st=special?raw:normalizeStyle(raw);
+  const locked=extra&&String(extra).includes("locked");
+  return `<canvas class="face ${extra||""}" data-who="${who}" data-style="${st}" ${locked?'data-locked="1"':""} width="360" height="440" aria-hidden="true"></canvas>`;
+}
+function paintCast(root){
+  if(window.Scene&&Scene.paintFaces) Scene.paintFaces(root||document);
 }
 function timingBonus(){
   const t=$("#timing"), n=t&&t.querySelector(".needle");
@@ -784,14 +794,12 @@ function renderHotspots(){
 }
 function renderLabels(){
   const el=$("#labels");
-  const names={reception:"ПРИЁМНАЯ",detective:"ДЕТЕКТИВ",interrog:"ДОПРОСНАЯ",cells:"КАМЕРЫ",garage:"ГАРАЖ",
-    chief:"ШЕФ",armory:"ОРУЖЕЙНАЯ",electric:"ЩИТОВАЯ",suggest:"ПРЕДЛОЖЕНИЯ",gasstation:"ЗАПРАВКА",press:"ПРЕСС-ЦЕНТР"};
   const html=ROOM_ORDER.map(id=>{
     const L=LAYOUT[id], d=ROOMS[id], locked=S.chiefLv<d.unlock;
     const st=posStyle(L.wing,L.lx,L.ly);
     const lv=locked?"":`<span class="lv">${S.rooms[id].level}</span>`;
     const work=(!locked && S.rooms[id].work)?`<i class="wp" style="width:${Math.min(100,S.rooms[id].prog*100)}%"></i>`:"";
-    return `<div class="rlab" style="left:${st.left};top:${st.top}">${names[id]}${lv}${work}</div>`;
+    return `<div class="rlab" style="left:${st.left};top:${st.top}">${locked?"🔒":""}${lv}${work}</div>`;
   }).join("");
   if(el.dataset.sig!==html){el.dataset.sig=html;el.innerHTML=html;}
 }
@@ -993,7 +1001,7 @@ function doGacha(mode){
   openModal(`<div class="reveal"><div class="mh">Набор героинь</div>
     <div class="flip-wrap"><div class="flip-card" id="gflip">
       <div class="flip-face back">★</div>
-      <div class="flip-face front"><img src="${heroSprite(def.id, S.heroes[def.id]?.outfit||"patrol")}" alt="${def.name}"></div>
+      <div class="flip-face front">${faceTag(def.id, S.heroes[def.id]?.outfit||"patrol")}</div>
     </div></div>
     <div class="rn" id="gname" style="opacity:0">${def.name}</div>
     <div class="rr" id="grar" style="opacity:0;color:${rar.color}">${rar.name} · ${def.role}</div>
@@ -1023,25 +1031,26 @@ function renderHeroes(){
     <div class="hero-grid">${HERO_ORDER.map(id=>{
       const def=HEROES[id], h=S.heroes[id], rar=RAR[def.rarity];
       if(!h.owned) return `<div class="hcard locked" data-act="hero" data-arg="${id}">
-        <img src="${heroSprite(id,"patrol")}" alt="" onerror="this.onerror=null;this.src='assets/heroes/${id}.webp'">
+        ${faceTag(id,"patrol")}
         <div class="lock">🔒</div>
         <div class="tag" style="background:#0008;color:${rar.color}">${rar.name}</div>
         <div class="hb"><div class="hn">${def.name}</div><div class="hr">${def.role}</div></div></div>`;
       const stars="★".repeat(h.stars||0)+"☆".repeat(5-(h.stars||0));
       const tier=heroTier(h.level);
       return `<div class="hcard evolution-card tier-${tier.id}" data-act="hero" data-arg="${id}" data-testid="hero-${id}"><div class="evo-stage">${tier.icon} ${tier.name}</div>
-        <img src="${heroSprite(id,h.outfit)}" alt="${def.name}" onerror="this.onerror=null;this.src='assets/cast/${id}/patrol.webp'">
+        ${faceTag(id,h.outfit)}
         <div class="tag" style="background:#0008;color:${rar.color}">${rar.name}</div>
         <div class="lv">ур. ${h.level}</div>
         <div class="hb"><div class="hn">${def.name}</div><div class="hr">${def.role}${h.assigned?" · "+ROOMS[h.assigned].name:""}</div>
         <div class="stars">${stars}</div><div class="evo-progress"><i style="width:${Math.min(100,h.level/10*100)}%"></i></div><button type="button" class="evo-open-btn" data-act="hero" data-arg="${id}" data-testid="open-hero-${id}">Открыть · Прокачать</button></div></div>`;
     }).join("")}</div>`;
+  paintCast($("#sheet"));
 }
 function openHero(id){
   const def=HEROES[id], h=S.heroes[id], rar=RAR[def.rarity];
   if(!h.owned){
     openModal(`<div class="mh">${def.name}</div><div class="ms" style="color:${rar.color}">${rar.name} · ${def.role}</div>
-      <img class="openhero-spr" src="${heroSprite(id,"patrol")}" alt="" width="140" height="140" style="width:140px;height:220px;max-height:36vh;border-radius:16px;margin:8px auto;object-fit:cover;object-position:center top">
+      ${faceTag(id,"patrol","openhero-spr")}
       <div class="ms">${def.blurb}</div>
       <button class="btn wide" data-act="buy" data-arg="h1">Набрать бесплатно</button>
       <button class="btn grey wide" data-act="close">Закрыть</button>`);
@@ -1058,13 +1067,13 @@ function openHero(id){
     const locked=h.level<s.minLevel;
     const on=outfit===s.id;
     return `<button type="button" class="style-card ${on?"on":""} ${locked?"locked":""}" data-act="outfit" data-arg="${id}|${s.id}" data-testid="style-${id}-${s.id}" ${locked?"disabled":""}>
-      <img src="${heroSprite(id,s.id)}" alt="" onerror="this.onerror=null;this.src='assets/cast/${id}/patrol.webp'">
+      ${faceTag(id,s.id)}
       <b>${s.name}</b><small>${locked?"с ур. "+s.minLevel:s.blurb}</small>
     </button>`;
   }).join("");
   openModal(`<div class="mh">${def.name}</div>
     <div class="ms" style="color:${rar.color}">${rar.name} · ${def.role} · ур. ${h.level} · ${def.face||""}</div>
-    <div class="evo-showcase tier-${tier.id}"><img class="openhero-spr" src="${heroSprite(id,outfit)}" alt="${def.name}" width="120" onerror="this.onerror=null;this.src='assets/cast/${id}/patrol.webp'"><span class="evo-showcase-label">${tier.icon} ${OUTFIT_STYLES.find(s=>s.id===outfit).name}</span></div>
+    <div class="evo-showcase tier-${tier.id}">${faceTag(id,outfit,"openhero-spr")}<span class="evo-showcase-label">${tier.icon} ${OUTFIT_STYLES.find(s=>s.id===outfit).name}</span></div>
     <div class="evo-roadmap"><b>Форма растёт вместе с ней</b><div class="evo-roadmap-stages">${OUTFIT_STYLES.map(s=>`<span class="${h.level>=s.minLevel?"reached":""}">${s.name}<small>ур. ${s.minLevel}</small></span>`).join("")}</div><div class="evo-next">${tier.next?"До следующего стиля: "+(tier.next-h.level)+" ур.":"Элитный лак открыт — можно выбрать любой стиль"}</div></div>
     <div class="ms">${def.blurb}</div>
     <div class="sec">Гардероб</div><div class="ms">Новые стили открываются с уровнем. Выбранный вручную стиль сохраняется.</div>
@@ -1193,7 +1202,7 @@ function seatPicker(roomId){
     <div class="seat-grid">`+owned.map(id=>{
       const def=HEROES[id], h=S.heroes[id], on=S.rooms[roomId].hero===id;
       return `<button class="seat ${on?"on":""}" data-act="assign" data-arg="${id}|${roomId}" data-testid="seat-${id}">
-        <img src="${heroSprite(id,h.outfit||"patrol")}" alt="${def.name}" onerror="this.onerror=null;this.src='assets/cast/${id}/patrol.webp'">
+        ${faceTag(id,h.outfit||"patrol")}
         ${def.name}${on?" · уже здесь":""}<br><span style="font-weight:700;color:#c49220">${on?"✓ За столом":"Посадить за стол"}</span>
       </button>`;
     }).join("")+`</div>`;
@@ -1305,7 +1314,7 @@ function renderRoomModal(id){
           <button class="btn ${on?"grey":""}" data-act="order" data-arg="${o.id}">${on?"Ещё раз":"Выполнить"}</button></div>`;
       }).join("");
   }
-  const asg=def?`<div class="assignee"><img src="${heroSprite(hid,S.heroes[hid].outfit)}" alt="" onerror="this.onerror=null;this.src='assets/cast/${hid}/patrol.webp'">
+  const asg=def?`<div class="assignee">${faceTag(hid,S.heroes[hid].outfit)}
       <div><b>${def.name}</b><div class="ms">${def.role} · ур. ${S.heroes[hid].level} · за столом</div></div></div>`
     :`<div class="assignee"><div style="width:52px;height:52px;border-radius:12px;background:#e8f3ff;display:flex;align-items:center;justify-content:center">⭐</div>
       <div><b>Стол свободен</b><div class="ms">Посадите сотрудницу — она сразу появится здесь</div></div></div>`;
@@ -1355,6 +1364,7 @@ function openModal(html){
   const box=m.querySelector(".box");
   if(box && box.focus){ try{ box.focus({preventScroll:true}); }catch(e){} }
   paintRoomPreviews(m);
+  paintCast(m);
   placePointer();
   restoreStageScroll();
   requestAnimationFrame(restoreStageScroll);
@@ -1760,18 +1770,13 @@ function frame(ts){
 async function start(){
   const ld=$("#ldfill"), txt=$("#ldtxt");
   // Decode first screen only; additional portraits load when needed.
-  const assets=[
-    "assets/avatar.webp","apple-touch-icon.png",
-    "assets/scene/jerusalem.webp","assets/cast/dog/rika.webp",
-    "assets/cast/anna/patrol.webp","assets/cast/civ/yael.webp",
-    "assets/heroes/nika.webp"
-  ];
+  const assets=["apple-touch-icon.png"];
   let n=0;
   const set=()=>{n++; ld.style.width=Math.round(10+n/assets.length*90)+"%"; txt.textContent="Загрузка "+n+"/"+assets.length;};
   await Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,1500))]);
   await Promise.all(assets.map(src=>new Promise(res=>{const i=new Image();let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);set();res();};const timer=setTimeout(finish,5000);i.onload=i.onerror=finish;i.src=src;})));
   const existed=load();
-  document.documentElement.dataset.design="lacquer-real";
+  document.documentElement.dataset.design="dollhouse";
   const gameEl=$("#game"); if(gameEl) gameEl.classList.add("live-scene");
   if(window.Scene){ Scene.init($("#scene")); Scene.preload(S); }
   AU.muted=!!S.muted;
@@ -1837,7 +1842,7 @@ async function start(){
 
   $("#loading").classList.add("hidden");
   $("#game").classList.remove("hidden");
-  if(window.Scene) Scene.resize();
+  if(window.Scene){ Scene.resize(); paintCast(document); }
   const stageElClick=$("#stage");
   if(stageElClick && !stageElClick.dataset.live){
     stageElClick.dataset.live="1";
@@ -1878,7 +1883,7 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
       if(refreshing) return; refreshing=true; if(S) save(); location.reload();
     });
-    navigator.serviceWorker.register("sw.js?v=15").then(reg=>{
+    navigator.serviceWorker.register("sw.js?v=19").then(reg=>{
       setInterval(()=>reg.update(), 60*1000);
       reg.addEventListener("updatefound",()=>{
         const w=reg.installing;

@@ -273,8 +273,8 @@ function roomDecorTier(level){
   };
 }
 const ROOM_SIGNS = {
-  reception: {en:"RECEPTION", he:"אולם קבלה"},
-  detective: {en:"DETECTIVE", he:"משרד בילוש"},
+  reception: {en:"RECEPTION HALL", he:"אולם קבלה"},
+  detective: {en:"DETECTIVE OFFICE", he:"משרד בילוש"},
   interrog: {en:"INTERROGATION", he:"חדר חקירות"},
   cells: {en:"HOLDING CELLS", he:"תאי מעצר"},
   garage: {en:"PATROL GARAGE", he:"מוסך סיור"},

@@ -619,3 +619,139 @@ button:focus-visible{outline:3px solid #ffd85b;outline-offset:2px}
 .evolution-card .evo-open-btn{min-height:42px;position:relative;z-index:8}
 .room-visual{border:0!important;box-shadow:none!important}
 @media(max-width:380px){.hero-grid{gap:8px}#modal .box{padding-inline:12px}}
+
+/* v19 · one glossy dollhouse. HUD matches the diorama, nothing frames the rooms. */
+:root{--sky:#7ecfff;--navy:#163e86;--gold:#f0c14a;--text:#1c3358;--muted:#5d7094;--tab-h:86px}
+html,body{background:#7ecfff}
+#loading{background:radial-gradient(circle at 70% 18%, #fff6d0 0, transparent 28%), linear-gradient(180deg,#4eb4f8,#1a5fbf)}
+#topbar{
+  background:linear-gradient(180deg, rgba(14,48,110,.92), rgba(20,78,160,.78));
+  box-shadow:none;
+  padding:calc(var(--safe-t) + 8px) 10px 8px;
+}
+.tb-title b{color:#fff;letter-spacing:.04em;font-size:12px}
+.tb-title b::before{content:none}
+.tb-title span{color:#d7ecff}
+.avatar,canvas.avatar{
+  width:46px;height:46px;max-width:46px;max-height:46px;border-radius:50%;
+  border:2px solid #f0d060;box-shadow:0 2px 0 #8a6418;background:#1a4f9c;
+}
+.icon-btn{width:42px;height:42px;border-radius:14px;background:linear-gradient(180deg,#3d7ad8,#1a4f9c);border:0;box-shadow:inset 0 1px #fff6,0 3px 0 #0d2f66}
+.res-row{grid-template-columns:1.3fr 1.15fr .7fr .7fr .7fr;gap:5px}
+.rpill{
+  background:linear-gradient(180deg,#163e86,#0e2c62);
+  border:0;border-radius:999px;color:#fff;
+  box-shadow:inset 0 1px #fff5,0 2px 0 #071a40;
+  min-height:34px;padding:2px 4px 2px 7px;font-size:11px;
+}
+.rpill .plus{width:22px;height:22px;background:linear-gradient(180deg,#7dffb0,#22a85a);color:#fff;box-shadow:0 2px 0 #0e6a32}
+.sat-row{color:#e7f3ff;font-size:10px}
+.sat-bar{background:#0e2c62;border:0;height:7px}
+#questbar{
+  background:linear-gradient(180deg,#fff6d2,#f0c14a);
+  color:#3a2a08;border:0;border-radius:16px;
+  box-shadow:inset 0 1px #fff,0 3px 0 #a07820;
+  min-height:52px;padding:6px 8px;
+}
+#questbar .qb-ava, #questbar canvas.qb-ava{width:34px;height:34px;border-radius:50%;border:2px solid #fff}
+#questbar .qb-help{
+  background:linear-gradient(180deg,#2f6fe0,#1a4fbf);border:0;border-radius:12px;
+  box-shadow:inset 0 1px #fff6,0 3px 0 #0e2f66;min-width:74px;min-height:40px;color:#fff;
+}
+#roomnav{
+  background:transparent;border:0;box-shadow:none;
+  padding:4px 8px 6px;gap:6px;
+}
+#roomnav button{
+  background:rgba(255,255,255,.88);border:0;border-radius:999px;
+  box-shadow:0 2px 0 rgba(20,50,100,.18);
+  color:#163e86;font-size:12px;min-height:40px;padding:8px 12px;
+}
+#stage{background:#7ecfff}
+#hint{color:#143e86;background:linear-gradient(180deg,transparent,#7ecfffd0)}
+.locktag{display:none!important}
+#labels .rlab{
+  background:linear-gradient(180deg,#ffe9a0,#e6b23c);
+  color:#5a3a08;border:0;border-radius:999px;
+  padding:1px 7px;font-size:10px;box-shadow:0 2px 0 #a07820;
+  max-width:54px;letter-spacing:0;
+}
+#labels .rlab .lv{background:transparent;color:inherit;padding:0;margin:0;font-size:11px}
+.abub{border:0;box-shadow:0 4px 0 rgba(20,40,80,.18),0 8px 16px rgba(20,40,80,.16)}
+.abub.gold{background:linear-gradient(180deg,#fff4c4,#f0c14a);color:#4a3208}
+#actors .actor.vip{background:transparent;border:0;color:transparent;box-shadow:none}
+#sheet{background:linear-gradient(180deg,#e7f6ff,#f7fbff 40%,#fff);color:var(--text)}
+#tabs{
+  background:linear-gradient(180deg,#3ea24a,#217a34);
+  border:0;box-shadow:none;
+  padding:8px 8px calc(8px + var(--safe-b));
+  gap:7px;height:auto;
+}
+#tabs .tab{
+  background:linear-gradient(180deg,#6eb6ff,#1d5ed8);
+  color:#fff;border:0;border-radius:18px;min-height:64px;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.55),0 4px 0 #143e86;
+  font-size:11px;font-weight:900;overflow:hidden;
+}
+#tabs .tab .ti{width:28px;height:26px;display:flex;align-items:center;justify-content:center}
+#tabs .tab .ti svg{width:26px;height:26px;display:block}
+#tabs .tab[data-arg="heroes"]{background:linear-gradient(180deg,#ffe08a,#e6a51a);color:#5a3a08;box-shadow:inset 0 2px 0 #fff8,0 4px 0 #8a6410}
+#tabs .tab[data-arg="tasks"]{background:linear-gradient(180deg,#c4a6ff,#6d42d4);color:#fff;box-shadow:inset 0 2px 0 #fff6,0 4px 0 #43208a}
+#tabs .tab.shop{background:linear-gradient(180deg,#ff8aaf,#e23b6a);color:#fff;border:0;box-shadow:inset 0 2px 0 #fff6,0 4px 0 #9a2048}
+#tabs .tab.on{transform:translateY(2px);outline:3px solid #fff;outline-offset:-3px}
+#tabs .tab .free,#tabs .tab.shop .free{
+  background:#fff;color:#c4234e;border-radius:999px;font-size:8px;font-weight:900;
+  padding:1px 5px;letter-spacing:.04em;
+}
+.btn{
+  background:linear-gradient(180deg,#3dce73,#149447);
+  border:0;border-radius:14px;color:#fff;
+  box-shadow:inset 0 1px #fff6,0 3px 0 #0d6a32;
+}
+.btn.gold{background:linear-gradient(180deg,#ffe08a,#e6a51a);color:#4a3208;box-shadow:inset 0 1px #fff8,0 3px 0 #8a6410}
+.btn.blue{background:linear-gradient(180deg,#6eb6ff,#1d5ed8);box-shadow:inset 0 1px #fff6,0 3px 0 #143e86}
+.btn.red{background:linear-gradient(180deg,#ff8d8d,#e23b4a);box-shadow:inset 0 1px #fff6,0 3px 0 #8a2030}
+.btn.grey{background:linear-gradient(180deg,#eef3f8,#d5e0ec);color:#3a4d66;box-shadow:inset 0 1px #fff,0 3px 0 #b7c4d4}
+canvas.face{display:block;width:100%;height:auto;background:transparent}
+.hcard,.evolution-card{
+  background:#fff!important;border:0!important;border-radius:20px!important;
+  box-shadow:0 8px 0 #d5e2f2,0 12px 20px rgba(20,50,100,.12)!important;
+  overflow:hidden;
+}
+.hcard canvas.face,.evolution-card canvas.face{width:100%;aspect-ratio:360/440;border-radius:0}
+.evolution-card .evo-stage{
+  background:linear-gradient(180deg,#ffe08a,#e6a51a);color:#4a3208;border:0;
+  box-shadow:0 2px 0 #a07820;
+}
+.style-card{border:0;border-radius:16px;background:#fff;box-shadow:0 6px 0 #d5e2f2;overflow:hidden}
+.style-card canvas.face{width:100%;height:auto;aspect-ratio:360/440}
+.style-card.on{box-shadow:0 0 0 3px #f0c14a,0 6px 0 #d5e2f2}
+.evo-showcase{
+  background:transparent!important;border:0!important;box-shadow:none!important;
+  height:auto!important;width:min(100%,240px);overflow:visible;
+}
+.evo-showcase canvas.face,.evo-showcase .openhero-spr{width:100%!important;height:auto!important;max-height:none!important;border-radius:22px;box-shadow:0 10px 24px rgba(20,50,100,.18)}
+.evo-showcase-label{bottom:-6px}
+.assignee canvas.face{width:64px;height:78px;border-radius:14px;flex:none}
+.flip-face.front{background:#d7ecff}
+.flip-face canvas.face{width:100%;height:100%;object-fit:cover}
+.iq-bg{
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255,220,150,.55), transparent 36%),
+    linear-gradient(180deg,#8fd4ff 0%,#24506e 46%,#101820 100%);
+}
+.iq-bg img{display:none}
+.iq-card{background:#fff}
+.iq-card canvas.face{width:100%;aspect-ratio:3/4;max-height:34vh}
+#nikatip canvas.face{width:36px;height:36px;border-radius:50%;border:2px solid #f0d060}
+#coach canvas.face,#coachava{width:92px;height:118px;border-radius:18px;flex:none}
+.room-preview{border-radius:18px;box-shadow:0 8px 20px rgba(20,50,100,.16)}
+#modal .box{background:linear-gradient(180deg,#f4fbff,#fff);border:0}
+#modal .mh{color:#163e86}
+.sheet-h{color:#163e86}
+.mission-card{background:linear-gradient(135deg,#1a4fbf,#3d8eef);box-shadow:0 8px 20px rgba(20,60,140,.25)}
+.task,.ach,.si,.gbtn,.stat{border:0;box-shadow:0 6px 0 #e1ebf5;border-radius:16px}
+@media(max-height:700px){
+  #questbar{min-height:48px}
+  .sat-row{display:none}
+}

@@ -8,9 +8,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Участок">
-<meta name="theme-color" content="#12386f">
+<meta name="theme-color" content="#1a5fbf">
 <meta name="description" content="Сказочный полицейский участок Хайфы: героини, расследования, патруль, прокачка комнат и бесплатные улучшения.">
-<link rel="manifest" href="manifest.webmanifest?v=18">
+<link rel="manifest" href="manifest.webmanifest?v=19">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="favicon.png">
 <style>
@@ -31,7 +31,7 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
 #loading{position:absolute;inset:0;z-index:50}
 #cinema .unlock-room{width:70%;max-width:280px;max-height:40vh;object-fit:contain}
 </style>
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 <div id="app">
@@ -45,7 +45,7 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
   <div id="game" class="hidden">
     <header id="topbar">
       <div class="tb-row">
-        <img class="avatar" id="avatar" src="assets/avatar.webp" alt="" width="48" height="48">
+        <canvas class="avatar face" id="avatar" data-who="nika" data-style="elite" width="128" height="128" aria-hidden="true"></canvas>
         <div class="tb-title">
           <b>ШЕФ ПОЛИЦИИ</b>
           <span>Иерусалим · ур. <i id="chiefLv">1</i></span>
@@ -55,7 +55,7 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
       <div class="res-row" id="resrow"></div>
       <div class="sat-row"><span>Удовлетворённость</span><div class="sat-bar"><i id="satfill"></i></div><b id="satn">0</b></div>
       <div id="questbar" data-testid="questbar" role="status" aria-label="Текущий шаг">
-        <img class="qb-ava" src="assets/heroes/nika.webp" alt="" width="32" height="32">
+        <canvas class="face qb-ava" data-who="nika" data-style="patrol" width="128" height="128" aria-hidden="true"></canvas>
         <div class="qb-txt">
           <b id="queststep">Шаг 1 из 12</b>
           <span id="questtxt">Посади дежурную за стол</span>
@@ -98,22 +98,22 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
     <div id="sheet" class="hidden"></div>
 
     <nav id="tabs">
-      <button class="tab on" data-act="tab" data-arg="station" data-testid="tab-station"><span class="ti">🏛️</span>Участок</button>
-      <button class="tab" data-act="tab" data-arg="heroes" data-testid="tab-heroes"><span class="ti">⭐</span>Героини</button>
-      <button class="tab" data-act="tab" data-arg="tasks" data-testid="tab-tasks"><span class="ti">📋</span>Задания</button>
-      <button class="tab shop" data-act="tab" data-arg="shop" data-testid="tab-shop"><span class="ti">🛒</span>Магазин<div class="free">БЕСПЛАТНО</div></button>
+      <button class="tab on" data-act="tab" data-arg="station" data-testid="tab-station"><span class="ti" aria-hidden="true"><svg viewBox="0 0 48 48"><path fill="currentColor" d="M8 20h32v20H8z"/><path fill="currentColor" d="M6 20 24 8l18 12z"/><rect x="20" y="28" width="8" height="12" fill="#fff" opacity=".9"/></svg></span>Участок</button>
+      <button class="tab" data-act="tab" data-arg="heroes" data-testid="tab-heroes"><span class="ti" aria-hidden="true"><svg viewBox="0 0 48 48"><path fill="currentColor" d="M24 6 28 18h12l-10 7 4 13-10-7-10 7 4-13L8 18h12z"/></svg></span>Героини</button>
+      <button class="tab" data-act="tab" data-arg="tasks" data-testid="tab-tasks"><span class="ti" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="12" y="8" width="24" height="32" rx="4" fill="currentColor"/><path d="M18 20h12M18 26h12M18 32h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></span>Задания</button>
+      <button class="tab shop" data-act="tab" data-arg="shop" data-testid="tab-shop"><span class="ti" aria-hidden="true"><svg viewBox="0 0 48 48"><path fill="currentColor" d="M10 18h28l-2 18H12z"/><path d="M16 18v-3a8 8 0 0 1 16 0v3" fill="none" stroke="currentColor" stroke-width="3"/></svg></span>Магазин<span class="free">БЕСПЛАТНО</span></button>
     </nav>
   </div>
 
   <div id="pulsering" class="hidden" aria-hidden="true" data-testid="pulsering"></div>
   <div id="pointer" class="hidden" aria-hidden="true"><span class="finger">👇</span></div>
   <div id="nikatip" class="hidden" data-testid="nikatip">
-    <img src="assets/heroes/nika.webp" alt="" width="36" height="36">
+    <canvas class="face" data-who="nika" data-style="patrol" width="128" height="128" aria-hidden="true"></canvas>
     <p id="nikatiptxt"></p>
     <button type="button" class="tip-x" data-act="closetip" data-testid="tip-close" aria-label="Закрыть">✕</button>
   </div>
   <div id="coach" class="hidden">
-    <img id="coachava" src="assets/heroes/nika.webp" alt="Ника" width="92" height="103">
+    <canvas class="face" id="coachava" data-who="nika" data-style="parade" width="280" height="360" aria-hidden="true"></canvas>
     <div class="coach-b">
       <button type="button" class="coach-x" data-act="guideskip" data-testid="guide-x" aria-label="Закрыть">✕</button>
       <b>Ника</b>
@@ -130,8 +130,8 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
   <div id="modal" class="hidden"></div>
   <div id="toasts"></div>
 </div>
-<script src="data.js?v=18"></script>
-<script src="render.js?v=18"></script>
-<script src="game.js?v=18"></script>
+<script src="data.js?v=19"></script>
+<script src="render.js?v=19"></script>
+<script src="game.js?v=19"></script>
 </body>
 </html>

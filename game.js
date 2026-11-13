@@ -1,6 +1,6 @@
-/* Шеф полиции: Участок v6 */
+/* Шеф полиции: Участок v9 — responsive quest and UI */
 const SAVE_KEY="shef-uchastok-v3", SAVE_OLD="shef-uchastok-v2";
-let S, TAB="station", dirty=false, lastTs=0, acc=0, lastView=0;
+let S, TAB="station", dirty=false, lastTs=0, acc=0, lastView=0, bubbleClock=0, labelClock=0, questClock=0;
 const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 
@@ -308,7 +308,7 @@ function spawnCitizen(forced){
   rec.in++;
   const cs=makeCase(!!forced?.boss || ((S.stats.interrogs||0)>0 && (S.stats.interrogs+1)%5===0));
   S.docket.push(cs);
-  const spr=cs.civ||pick(["civ-man","civ-woman","civ-older"]);
+  const spr="civ-woman";
   const q=S.actors.filter(x=>x.kind==="citizen"&&x.state!=="leave").length;
   const wx=LAYOUT.reception.px + Math.min(q,2)*7;
   const wy=LAYOUT.reception.py + Math.min(q,2)*3;
@@ -374,7 +374,7 @@ function deliver(room,kind,amt){
   const d=ROOMS[room];
   if(kind==="cash"||kind==="gas"||kind==="ammo"||kind==="elec"||kind==="diamonds"){
     addRes(kind,amt);
-    toast(kind==="cash"?"+"+fmt(amt)+" ₽":"+"+amt);
+    toast(kind==="cash"?"+"+fmt(amt)+" ₪":"+"+amt);
     const hs=document.querySelector('[data-testid="room-'+room+'"]');
     if(hs){ const r=hs.getBoundingClientRect(); coinBurst(r.left+r.width/2, r.top+20, 7, kind==="cash"?"💰":"+"); }
     return;
@@ -383,10 +383,10 @@ function deliver(room,kind,amt){
     S.rooms[d.next].in+=amt;
     const A=LAYOUT[room], B=LAYOUT[d.next];
     const typ=kind==="suspects"?"suspect":kind==="inmates"?"inmate":"citizen";
-    let spr="civ-man";
+    let spr="civ-woman";
     const cs=S.docket.find(c=>c.stage==="warrant"||c.stage==="suspect"||c.stage==="docs"||c.stage==="detective");
-    if(typ==="suspect") spr=(cs&&cs.suspect)||"suspect-m";
-    else if(typ==="inmate") spr="inmate-m";
+    if(typ==="suspect") spr="suspect-f";
+    else if(typ==="inmate") spr="suspect-f";
     const a=addActor({kind:typ, spr, wing:A.wing, x:A.ax, y:A.ay, life:1, state:"xfer"});
     if(typ==="suspect" && cs){ cs.stage="interrog"; say(a, cs.line||pick(SAY.suspect), 2.6); }
     if(A.wing===B.wing){ walkTo(a,B.ax,B.ay,20); }
@@ -402,7 +402,7 @@ function collectRoom(id){
   if(d.kind==="holding"){
     if(r.pending>0){
       const amt=r.pending|0;
-      addRes("cash",amt); toast("+"+fmt(amt)+" ₽"); r.pending=0; AU.coin(); guideEvent("collect:"+id);
+      addRes("cash",amt); toast("+"+fmt(amt)+" ₪"); r.pending=0; AU.coin(); guideEvent("collect:"+id);
       const hs=document.querySelector('[data-testid="room-cells"]');
       if(hs){ const b=hs.getBoundingClientRect(); coinBurst(b.left+b.width/2,b.top+40,8); }
       mark(); hud();
@@ -541,7 +541,7 @@ function syncInmates(){
   const slots=[{x:20,y:72},{x:32,y:70},{x:16,y:78},{x:28,y:76}];
   while(have<need && have<slots.length){
     const s=slots[have];
-    addActor({kind:"inmate", spr:"inmate-m", wing:1, x:s.x, y:s.y, tx:s.x, ty:s.y, walk:false, life:1, state:"sit"});
+    addActor({kind:"inmate", spr:"suspect-f", wing:1, x:s.x, y:s.y, tx:s.x, ty:s.y, walk:false, life:1, state:"sit"});
     have++;
   }
   if(have>need){
@@ -571,7 +571,7 @@ function renderIQ(){
   const def=HEROES[IQ.hid]||HEROES.anna;
   const cs=IQ.cs;
   const spr=heroSprite(def.id, S.heroes[def.id]?.outfit);
-  const sus=cs.suspect||"suspect-m";
+  const sus=cs.suspect||"suspect-f";
   const line = IQ.round===1 ? (cs.line||pick(SAY.iqOpen)) : (IQ.lastLine||pick(SAY.iqOpen));
   $("#iq").classList.remove("hidden");
   $("#iq").style.display="";
@@ -663,7 +663,7 @@ function finishIQ(){
 }
 function spawnTransferInmate(cs){
   const A=LAYOUT.interrog, B=LAYOUT.cells;
-  const a=addActor({kind:"inmate",spr:"inmate-m",wing:1,x:A.ax,y:A.ay,life:1,state:"xfer"});
+  const a=addActor({kind:"inmate",spr:"suspect-f",wing:1,x:A.ax,y:A.ay,life:1,state:"xfer"});
   walkTo(a,B.ax,B.ay,18);
   say(a, pick(SAY.inmate), 2);
 }
@@ -680,7 +680,7 @@ function upgradeRoom(id){
   if(S.cash<cost){toast("Не хватает денег — загляните в магазин");return;}
   S.cash-=cost; r.level++; addStat("upgrades",1);
   AU.ok(); confetti(); toast(ROOMS[id].name+" — уровень "+r.level);
-  mark(); hud(); renderLabels(); renderRoomModal(id);
+  mark(); hud(); renderHotspots(); renderLabels(); renderRoomModal(id);
   guideEvent("upgrade");
 }
 function upgradeChief(){
@@ -718,7 +718,7 @@ function applyOffline(){
   if(cash>0) addStat("cashGot",cash);
   const h=Math.floor(dt/3600), m=Math.floor((dt%3600)/60);
   const time=h?h+" ч "+m+" мин":m+" мин";
-  let msg="Пока вас не было ("+time+"), участок заработал:\n💰 "+fmt(cash)+" ₽";
+  let msg="Пока вас не было ("+time+"), участок заработал:\n💰 "+fmt(cash)+" ₪";
   if(ammo) msg+="\n🔫 "+ammo; if(elec) msg+="\n⚡ "+elec; if(gas) msg+="\n⛽ "+gas;
   openModal(`<div class="mh">С возвращением</div><div class="ms" style="white-space:pre-line">${msg}</div><button class="btn wide" data-act="close">Забрать</button>`);
 }
@@ -735,7 +735,7 @@ function maybeDaily(){
   openModal(`<div class="daily"><div class="mh">Ежедневный подарок</div>
     <div class="gift">🎁</div>
     <div class="ms">День ${S.dailyStreak} подряд</div>
-    <div class="statg"><div class="stat"><b>${fmt(cash)} ₽</b><span>деньги</span></div>
+    <div class="statg"><div class="stat"><b>${fmt(cash)} ₪</b><span>деньги</span></div>
     <div class="stat"><b>${dia} 💎</b><span>алмазы</span></div></div>
     <button class="btn wide" data-act="close">Забрать</button></div>`);
   confetti(); mark();
@@ -761,7 +761,8 @@ function renderHotspots(){
     const d=ROOMS[id], locked=S.chiefLv<d.unlock;
     const box=roomBox(id);
     const lock=locked?`<div class="locktag"><span class="lk">🔒</span>${d.name}<br>откроется на ур. ${d.unlock}</div>`:"";
-    return `<div class="hotspot ${locked?"locked":""}" data-act="open" data-arg="${id}" data-testid="room-${id}"
+    const tier=locked?"tier-locked":(S.rooms[id].level>=8?"tier-diamond":S.rooms[id].level>=4?"tier-gold":S.rooms[id].level>=2?"tier-silver":"tier-base");
+    return `<div class="hotspot ${locked?"locked":""} ${tier}" data-act="open" data-arg="${id}" data-testid="room-${id}"
       style="left:${box.left};top:${box.top};width:${box.width};height:${box.height}">${lock}</div>`;
   }).join("");
 }
@@ -799,7 +800,7 @@ function upsertActor(a, parent, extraClass){
   const st=posStyle(a.wing||1, a.x, a.y);
   el.style.left=st.left; el.style.top=st.top;
   const img=el.querySelector("img");
-  let src="assets/sprites/"+(a.spr||"civ-man")+".webp";
+  let src="assets/sprites/"+(a.spr||"civ-woman")+".webp";
   if(a.kind==="hero") src=heroSprite(a.spr, S.heroes[a.spr]?.outfit);
   if(img.dataset.src!==src){ img.src=src; img.dataset.src=src; }
   img.style.transform=a.flip?"scaleX(-1)":"";
@@ -853,7 +854,7 @@ function renderBubbles(){
     if(rr.garage.out>0) add("garage","ПОДОЗРЕВАЕМЫЙ<small>вести на допрос</small>","gold","collect","garage","bub-suspect");
     if(rr.interrog.in>0) add("interrog","ДОПРОС ПРОВЕСТИ","red","iq","","bub-iq");
     if(rr.interrog.out>0) add("interrog","В КАМЕРУ","gold","tocell","","bub-cell");
-    if(rr.cells.pending>=20) add("cells","ЗАБРАТЬ "+fmt(rr.cells.pending|0)+" ₽","gold","collect","cells","bub-cash");
+    if(rr.cells.pending>=20) add("cells","ЗАБРАТЬ "+fmt(rr.cells.pending|0)+" ₪","gold","collect","cells","bub-cash");
     if(rr.armory.out>0 && S.chiefLv>=2) add("armory","ПАТРОНЫ +"+rr.armory.out,"gold","collect","armory");
     if(rr.electric.out>0 && S.chiefLv>=3) add("electric","ЭНЕРГИЯ +"+rr.electric.out,"gold","collect","electric");
     if(rr.gasstation.out>0 && S.chiefLv>=5) add("gasstation","БЕНЗИН +"+rr.gasstation.out,"gold","collect","gasstation");
@@ -900,7 +901,7 @@ function buy(id){
   if(!item) return;
   AU.ok();
   if(item.give){ for(const [k,v] of Object.entries(item.give)) addRes(k,v); toast("Получено: "+item.name); }
-  else if(item.special==="fund"){ if(!S.fund){S.fund=true;toast("Фонд роста активен: +50% к доходу");} else {addRes("cash",15000);toast("Фонд уже активен, +15 000 ₽");} }
+  else if(item.special==="fund"){ if(!S.fund){S.fund=true;toast("Фонд роста активен: +50% к доходу");} else {addRes("cash",15000);toast("Фонд уже активен, +15 000 ₪");} }
   else if(item.special==="pass"){ S.pass=true; addRes("cash",15000); addRes("diamonds",1500); addRes("gas",200); addRes("ammo",200); addRes("elec",200); toast("Пропуск активирован, все награды получены"); }
   else if(item.special==="vip"){ S.vip=Math.min(10,S.vip+1); addRes("cash",5000*S.vip); addRes("diamonds",200*S.vip); toast("VIP "+S.vip+"!"); }
   else if(item.special==="queue"){ S.secondQueue=true; toast("Вторая очередь включена"); }
@@ -1012,7 +1013,7 @@ function openHero(id){
     <div class="statg"><div class="stat"><b>${h.level}</b><span>уровень</span></div><div class="stat"><b>${h.stars||0}/5</b><span>звёзды</span></div></div>
     <div class="sec">Посадить за стол</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${rooms}</div>
-    <button class="btn wide" data-act="uphero" data-arg="${id}" data-testid="up-hero">Улучшить за ${fmt(cost)} ₽</button>
+    <button class="btn wide" data-act="uphero" data-arg="${id}" data-testid="up-hero">Улучшить за ${fmt(cost)} ₪</button>
     <button class="btn grey wide" data-act="close">Закрыть</button>`);
 }
 function setOutfit(arg){
@@ -1032,7 +1033,7 @@ function upHero(id){
 }
 function assignHero(arg){
   const [id,room]=arg.split("|");
-  const h=S.heroes[id]; if(!h?.owned) return;
+  const h=S.heroes[id]; if(!h?.owned || !S.rooms[room]){toast("Сотрудница пока недоступна");return;}
   // clear previous occupant of this room + previous room of this hero
   for(const hid of HERO_ORDER){ if(S.heroes[hid].assigned===room) S.heroes[hid].assigned=null; }
   if(h.assigned && S.rooms[h.assigned]) S.rooms[h.assigned].hero=null;
@@ -1178,9 +1179,9 @@ function renderRoomModal(id){
   }else if(d.kind==="holding"){
     body=`<div class="statg">
       <div class="stat"><b>${r.in} / ${cap}</b><span>заключённые</span></div>
-      <div class="stat"><b>${fmt(r.pending|0)} ₽</b><span>можно забрать</span></div>
+      <div class="stat"><b>${fmt(r.pending|0)} ₪</b><span>можно забрать</span></div>
     </div>`;
-    if(r.pending>0) actions+=`<button class="btn wide" data-act="collect" data-arg="${id}" data-testid="collect-cash">Забрать ${fmt(r.pending|0)} ₽</button>`;
+    if(r.pending>0) actions+=`<button class="btn wide" data-act="collect" data-arg="${id}" data-testid="collect-cash">Забрать ${fmt(r.pending|0)} ₪</button>`;
     if(S.rooms.interrog.out>0 && r.in<cap) actions+=`<button class="btn wide" data-act="tocell">Принять ожидающих</button>`;
   }else if(d.kind==="resource"){
     body=`<div class="statg"><div class="stat"><b>${r.level}</b><span>уровень</span></div><div class="stat"><b>${r.out}</b><span>накоплено</span></div></div>`;
@@ -1191,7 +1192,7 @@ function renderRoomModal(id){
     const next=UNLOCK_HINT[S.chiefLv+1];
     body=`<div class="statg"><div class="stat"><b>${S.chiefLv}</b><span>уровень шефа</span></div>
       <div class="stat"><b>${next||"все комнаты открыты"}</b><span>следующее</span></div></div>`;
-    actions+=`<button class="btn gold wide" data-act="upchief" data-testid="up-chief">Повысить за ${fmt(c.cash)} ₽ и ${c.diamonds} 💎</button>`;
+    actions+=`<button class="btn gold wide" data-act="upchief" data-testid="up-chief">Повысить за ${fmt(c.cash)} ₪ и ${c.diamonds} 💎</button>`;
   }else if(d.kind==="mailbox"){
     body=`<div class="ms">Жители оставляют идеи. Заберите награду — бесплатно и без ограничений.</div>`;
     actions+=`<button class="btn wide" data-act="suggest" data-testid="suggest">Забрать предложение</button>`;
@@ -1212,7 +1213,7 @@ function renderRoomModal(id){
     ${body}
     <div class="room-actions">${actions}</div>
     <details class="staff-picker" ${r.hero?"":"open"}><summary>Назначить сотрудницу</summary>${seatPicker(id)}</details>
-    ${d.kind!=="mailbox"&&d.kind!=="orders"?`<button class="btn blue wide" data-act="uproom" data-arg="${id}" data-testid="up-room">Улучшить за ${fmt(cost)} ₽</button>`:""}
+    ${d.kind!=="mailbox"&&d.kind!=="orders"?`<button class="btn blue wide" data-act="uproom" data-arg="${id}" data-testid="up-room">Улучшить за ${fmt(cost)} ₪</button>`:""}
     <button class="btn grey wide" data-act="close">Закрыть</button>`);
 }
 function doOrder(id){
@@ -1226,7 +1227,7 @@ function doOrder(id){
 }
 function doSuggest(){
   const opts=[
-    ()=>{addRes("cash",2000);return "+2 000 ₽ от жителя";},
+    ()=>{addRes("cash",2000);return "+2 000 ₪ от жителя";},
     ()=>{addRes("diamonds",40);return "+40 алмазов";},
     ()=>{addRes("gas",40);return "+40 бензина";},
     ()=>{addRes("ammo",40);return "+40 патронов";},
@@ -1471,7 +1472,7 @@ function completeQuest(force){
     coinBurst(r.left+r.width/2, r.bottom+8, 8);
     AU.star();
   }
-  if(st.praise) showNikaTip(st.praise+(st.reward?(" +"+fmt(st.reward)+" ₽"):""));
+  if(st.praise) showNikaTip(st.praise+(st.reward?(" +"+fmt(st.reward)+" ₪"):""));
   syncQuestFromState();
   if(S.guideDone){
     const sk=$("#questskip"); if(sk) sk.classList.add("hidden");
@@ -1570,16 +1571,31 @@ function updateQuest(){
   placePointer();
 }
 function followQuest(silent){
-  if(silent) return;
+  if(silent)return;
   const q=questInfo();
-  closeNikaTip(); closeModal(); closeIq(); closeCinema();
-  if(q.id==="shop"){ setTab("shop"); return; }
+  closeNikaTip();closeModal();closeIq();closeCinema();
+  if(q.id==="shop"){setTab("shop");toast("Задание: открой бесплатный магазин");return;}
   setTab("station");
   if(q.room){
-    _userScrollAt=0; cancelAutoScroll();
+    _userScrollAt=0;cancelAutoScroll();
     scrollToRoom(q.room,{force:true,smooth:false});
     openRoom(q.room);
-  }else if(q.nika) showNikaTip(q.nika);
+    const box=$("#modal .box");
+    if(box){
+      const help=document.createElement("div");help.className="quest-focus";
+      const heading=document.createElement("strong");heading.textContent="ТВОЁ ЗАДАНИЕ";
+      const desc=document.createElement("p");desc.textContent=q.nika||q.title||"";
+      help.append(heading,desc);
+      const hero=q.id==="seat-rec"?"anna":q.id==="seat-det"?"marina":null;
+      if(hero && S.heroes[hero]?.owned && !S.rooms[q.room].hero){
+        const b=document.createElement("button");b.className="btn gold wide quest-do";
+        b.textContent="Назначить "+HEROES[hero].name+" и продолжить";
+        b.dataset.act="assign";b.dataset.arg=hero+"|"+q.room;help.appendChild(b);
+      }
+      box.prepend(help);box.scrollTop=0;
+    }
+    toast("Открыто: "+q.title);
+  }else if(q.nika)showNikaTip(q.nika);
 }
 function placePointer(){
   const p=$("#pointer"), ring=$("#pulsering");
@@ -1618,37 +1634,41 @@ function placePointer(){
 }
 function layoutCoach(){ placeToasts(); }
 
+let _frameErrorAt=0;
 function frame(ts){
   const dt=Math.min(0.08,(ts-lastTs)/1000||0.016);
   lastTs=ts;
-  if(document.hidden){ lastTs=ts; requestAnimationFrame(frame); return; }
-  tick(dt);
-  lastView+=dt;
-  if(lastView>0.08){ lastView=0; if(TAB==="station"){ renderActors(); renderBubbles(); renderLabels(); placePointer(); }
-    const st=typeof chainStep==="function"&&chainStep(); if(st&&st.done&&!_questLock){ try{ if(st.done()) completeQuest(); }catch(e){} }
-  }
-  acc+=dt;
-  if(acc>2 && dirty){save();acc=0;}
+  if(document.hidden){requestAnimationFrame(frame);return;}
+  try{
+    tick(dt);
+    lastView+=dt;bubbleClock+=dt;labelClock+=dt;questClock+=dt;
+    if(TAB==="station"&&lastView>=0.12){lastView=0;renderActors();}
+    if(TAB==="station"&&bubbleClock>=0.25){bubbleClock=0;renderBubbles();placePointer();}
+    if(TAB==="station"&&labelClock>=0.65){labelClock=0;renderLabels();}
+    if(questClock>=0.35){
+      questClock=0;const st=chainStep();
+      if(st&&st.done&&!_questLock){try{if(st.done())completeQuest();}catch(e){console.warn(e);}}
+    }
+    acc+=dt;if(acc>2&&dirty){save();acc=0;}
+  }catch(e){if(Date.now()-_frameErrorAt>10000){_frameErrorAt=Date.now();console.error("Game loop error:",e);toast("Игра восстановилась после ошибки");}}
   requestAnimationFrame(frame);
 }
-
 async function start(){
   const ld=$("#ldfill"), txt=$("#ldtxt");
+  // Decode first screen only; additional portraits load when needed.
   const assets=[
     "assets/avatar.webp","apple-touch-icon.png",
-    "assets/rooms/wing-start.webp","assets/rooms/wing-more.webp","assets/rooms/interrog-bg.webp",
-    "assets/sprites/car-police.webp","assets/sprites/civ-man.webp","assets/sprites/civ-woman.webp",
-    "assets/sprites/civ-older.webp","assets/sprites/suspect-m.webp","assets/sprites/inmate-m.webp",
-    "assets/sprites/suspect-f.webp","assets/sprites/suspect-boss.webp","assets/sprites/suspect-hood.webp",
-    "assets/sprites/nika.webp","assets/heroes/nika.webp",
-    ...HERO_ORDER.map(id=>"assets/heroes/"+id+".webp"),
-    ...HERO_ORDER.map(id=>"assets/sprites/"+id+".webp")
+    "assets/rooms/wing-start.webp","assets/rooms/wing-more.webp",
+    "assets/sprites/car-police.webp","assets/sprites/civ-woman.webp",
+    "assets/sprites/suspect-f.webp","assets/heroes/nika.webp",
+    "assets/heroes/anna.webp","assets/sprites/anna.webp"
   ];
   let n=0;
   const set=()=>{n++; ld.style.width=Math.round(10+n/assets.length*90)+"%"; txt.textContent="Загрузка "+n+"/"+assets.length;};
   await Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,1500))]);
   await Promise.all(assets.map(src=>new Promise(res=>{const i=new Image();let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);set();res();};const timer=setTimeout(finish,5000);i.onload=i.onerror=finish;i.src=src;})));
   const existed=load();
+  document.documentElement.dataset.design="israel-gloss";
   AU.muted=!!S.muted;
   hud();
   spawnStaff();
@@ -1668,12 +1688,34 @@ async function start(){
     stage.addEventListener("pointerdown", ev=>{ if(ev.pointerType!=="mouse"||ev.buttons) markUserScroll(); }, {passive:true});
   }
 
-  document.body.addEventListener("click",ev=>{
-    const b=ev.target.closest("[data-act]");
-    if(!b) return;
+  // On iOS a touch gesture can lose its synthesized click. Handle pointerup
+  // and deduplicate the later click without stealing drags/scrolls.
+  let tapStart=null,lastTapEl=null,lastTapAt=0;
+  const activationTarget=ev=>{
+    const t=ev.target?.nodeType===1?ev.target:ev.target?.parentElement;
+    return t?.closest?.("[data-act]")||null;
+  };
+  document.body.addEventListener("pointerdown",ev=>{
+    if(ev.pointerType==="touch"||ev.pointerType==="pen")tapStart={id:ev.pointerId,x:ev.clientX,y:ev.clientY};
+  },true);
+  document.body.addEventListener("pointercancel",()=>{tapStart=null;},true);
+  const activate=ev=>{
+    if(ev.type==="pointerup"){
+      if(ev.pointerType==="mouse")return;
+      const t=tapStart;tapStart=null;
+      if(!t||t.id!==ev.pointerId||Math.hypot(ev.clientX-t.x,ev.clientY-t.y)>14)return;
+    }
+    const b=activationTarget(ev);
+    if(!b||b.disabled)return;
     ev.preventDefault();
-    onAct(b.dataset.act, b.dataset.arg);
-  });
+    const now=Date.now();
+    if(b===lastTapEl&&now-lastTapAt<420)return;
+    lastTapEl=b;lastTapAt=now;
+    try{onAct(b.dataset.act,b.dataset.arg);}
+    catch(e){console.error("Action failed:",b.dataset.act,e);toast("Не удалось выполнить действие — повторите");}
+  };
+  document.body.addEventListener("pointerup",activate,true);
+  document.body.addEventListener("click",activate,true);
   const qb=$("#questbar");
   if(qb) qb.addEventListener("click", ev=>{ if(ev.target.closest("[data-act]")) return; ev.preventDefault(); followQuest(); });
 
@@ -1702,7 +1744,7 @@ async function start(){
   window.addEventListener("pagehide",save);
 }
 
-start().catch(e=>{console.error(e);$("#ldtxt").textContent="Ошибка загрузки";});
+start().catch(e=>{console.error(e);const t=$("#ldtxt");if(t)t.textContent="Ошибка загрузки · обновите страницу";});
 window.__GAME=()=>({S,TAB,collectRoom,skipAll,openRoom,setTab,save,upgradeRoom,buy,closeModal,startWork,addRes,openInterrog,iqPick,assignHero,spawnStaff,giveHero,spawnCitizen,guideEvent,showGuide,followQuest,currentQuest,chainStep,syncQuestFromState,completeQuest,finishGuide,QUEST_CHAIN,scrollToRoom,markUserScroll,saveStageScroll,restoreStageScroll});
 
 if("serviceWorker" in navigator){

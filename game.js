@@ -1032,7 +1032,7 @@ function upHero(id){
   if(S.cash<cost){toast("Не хватает денег — возьмите в магазине бесплатно");return;}
   S.cash-=cost; h.level=Math.min(50,h.level+1);
   // Existing outfit artwork evolves automatically unless the player picked a color.
-  if(!h.outfitPinned && (h.outfit==="black" || h.autoOutfit)){
+  if(!h.outfitPinned && (!h.outfit || h.outfit==="black" || h.autoOutfit)){
     const newColor=h.level>=10?"white":h.level>=6?"purple":h.level>=3?"red":"black";
     if(h.outfit!==newColor){h.outfit=newColor;h.autoOutfit=true;}
   }

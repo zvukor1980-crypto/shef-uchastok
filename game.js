@@ -399,11 +399,10 @@ function deliver(room,kind,amt){
 
 function collectRoom(id){
   const r=S.rooms[id], d=ROOMS[id];
-  guideEvent("collect:"+id);
   if(d.kind==="holding"){
     if(r.pending>0){
       const amt=r.pending|0;
-      addRes("cash",amt); toast("+"+fmt(amt)+" ₽"); r.pending=0; AU.coin();
+      addRes("cash",amt); toast("+"+fmt(amt)+" ₽"); r.pending=0; AU.coin(); guideEvent("collect:"+id);
       const hs=document.querySelector('[data-testid="room-cells"]');
       if(hs){ const b=hs.getBoundingClientRect(); coinBurst(b.left+b.width/2,b.top+40,8); }
       mark(); hud();
@@ -411,7 +410,7 @@ function collectRoom(id){
     return;
   }
   if(r.out>0){
-    const amt=r.out; r.out=0; deliver(id, d.outKey||d.prod, amt); AU.coin();
+    const amt=r.out; r.out=0; deliver(id, d.outKey||d.prod, amt); AU.coin(); guideEvent("collect:"+id);
   }
 }
 
@@ -770,13 +769,14 @@ function renderLabels(){
   const el=$("#labels");
   const names={reception:"ПРИЁМНАЯ",detective:"ДЕТЕКТИВ",interrog:"ДОПРОСНАЯ",cells:"КАМЕРЫ",garage:"ГАРАЖ",
     chief:"ШЕФ",armory:"ОРУЖЕЙНАЯ",electric:"ЩИТОВАЯ",suggest:"ПРЕДЛОЖЕНИЯ",gasstation:"ЗАПРАВКА",press:"ПРЕСС-ЦЕНТР"};
-  el.innerHTML=ROOM_ORDER.map(id=>{
+  const html=ROOM_ORDER.map(id=>{
     const L=LAYOUT[id], d=ROOMS[id], locked=S.chiefLv<d.unlock;
     const st=posStyle(L.wing,L.lx,L.ly);
     const lv=locked?"":`<span class="lv">${S.rooms[id].level}</span>`;
     const work=(!locked && S.rooms[id].work)?`<i class="wp" style="width:${Math.min(100,S.rooms[id].prog*100)}%"></i>`:"";
     return `<div class="rlab" style="left:${st.left};top:${st.top}">${names[id]}${lv}${work}</div>`;
   }).join("");
+  if(el.dataset.sig!==html){el.dataset.sig=html;el.innerHTML=html;}
 }
 
 function upsertActor(a, parent, extraClass){
@@ -867,6 +867,8 @@ function renderBubbles(){
 /* ===== sheets / shop / heroes ===== */
 function setTab(t){
   TAB=t;
+  $("#game").dataset.tab=t;
+  closeNikaTip();
   $$("#tabs .tab").forEach(b=>b.classList.toggle("on", b.dataset.arg===t));
   const sheet=$("#sheet");
   if(t==="station"){sheet.classList.add("hidden");sheet.innerHTML="";}
@@ -1076,10 +1078,10 @@ function renderTasks(){
     return `<div class="ach ${got?"got":""}"><div class="ic">${got?"🏆":"🔒"}</div>
       <div class="sn"><b>${a.name}</b><span>${a.desc}</span></div></div>`;
   }).join("");
-  $("#sheet").innerHTML=`<div class="sheet-h">Задания</div>
+  $("#sheet").innerHTML=`<div class="mission-card"><span>ТЕКУЩЕЕ ДЕЛО</span><h2>${currentQuest().title}</h2><p>${currentQuest().nika||""}</p><button class="btn wide" data-act="questhelp">Перейти к заданию →</button></div><div class="sheet-h">Задания на сегодня</div>
     <div class="sheet-sub">Ежедневные поручения. Награды можно забирать сразу.</div>`+tasks+
     `<button class="btn grey wide" data-act="claimall">Забрать всё выполненное</button>
-    <div class="sec">Достижения</div>`+ach;
+    <div class="sec">Достижения</div>`+ach+(!S.guideDone?`<button class="btn grey wide" data-act="guideskip">Завершить обучение</button>`:"");
 }
 function claimTask(id){
   const t=TASKS.find(x=>x.id===id); if(!t||S.tasks.claimed[t.id]) return;
@@ -1171,6 +1173,7 @@ function renderRoomModal(id){
       actions+=`<button class="btn wide" data-act="startpatrol" data-arg="${id}" data-testid="patrol">Отправить патруль</button>`;
   }else if(d.kind==="interrog"){
     body=`<div class="statg"><div class="stat"><b>${r.in}</b><span>ждут допроса</span></div><div class="stat"><b>${r.level}</b><span>уровень</span></div></div>`;
+    if(r.out>0) actions+=`<button class="btn wide" data-act="tocell">Отправить в камеру</button>`;
     if(r.in>0) actions+=`<button class="btn red wide" data-act="iq" data-testid="start-iq">Начать допрос</button>`;
   }else if(d.kind==="holding"){
     body=`<div class="statg">
@@ -1206,10 +1209,10 @@ function renderRoomModal(id){
       <div><b>Стол свободен</b><div class="ms">Посадите сотрудницу — она сразу появится здесь</div></div></div>`;
   openModal(`<div class="mh">${d.name}</div><div class="ms">${FLAVOR[id]||""}</div>
     ${asg}
-    ${seatPicker(id)}
     ${body}
+    <div class="room-actions">${actions}</div>
+    <details class="staff-picker" ${r.hero?"":"open"}><summary>Назначить сотрудницу</summary>${seatPicker(id)}</details>
     ${d.kind!=="mailbox"&&d.kind!=="orders"?`<button class="btn blue wide" data-act="uproom" data-arg="${id}" data-testid="up-room">Улучшить за ${fmt(cost)} ₽</button>`:""}
-    ${actions}
     <button class="btn grey wide" data-act="close">Закрыть</button>`);
 }
 function doOrder(id){
@@ -1276,7 +1279,7 @@ function onAct(act,arg){
     case "claimall": claimAll(); break;
     case "uproom": upgradeRoom(arg); break;
     case "upchief": upgradeChief(); break;
-    case "collect": collectRoom(arg); break;
+    case "collect": collectRoom(arg); closeModal(); break;
     case "skipone": { const r=S.rooms[arg]; if(r&&r.work) r.prog=1; closeModal(); break; }
     case "iq": closeModal(); openInterrog(); break;
     case "iqpick": iqPick(arg); break;
@@ -1285,7 +1288,8 @@ function onAct(act,arg){
     case "riot": sendRiot(); closeModal(); break;
     case "tocell": {
       const cap=roomCap("cells",S);
-      const n=Math.min(S.rooms.interrog.out, cap-S.rooms.cells.in);
+      const n=Math.max(0,Math.min(S.rooms.interrog.out, cap-S.rooms.cells.in));
+      if(!n){ toast("В камерах нет свободных мест. Улучшите камеры."); break; }
       S.rooms.interrog.out-=n; S.rooms.cells.in+=n; mark(); closeModal(); guideEvent("tocell"); break;
     }
     case "suggest": doSuggest(); break;
@@ -1380,7 +1384,7 @@ const QUEST_CHAIN = [
     nika:"Нажмите табличку в камерах (или саму комнату) и заберите доход.",
     sel:'[data-testid="bub-cash"], [data-testid="collect-cash"], [data-testid="room-cells"]',
     room:"cells", wait:"collect:cells",
-    done:()=> !!(S.questFlags&&S.questFlags.income) || (S.stats.cashGot||0)>0,
+    done:()=> !!(S.questFlags&&S.questFlags.income),
     enter(){ if((S.rooms.cells.pending||0)<40) S.rooms.cells.pending=(S.rooms.cells.pending||0)+80; },
     praise:"Отличный доход! Давайте улучшим комнату.", reward:300},
   {id:"upgrade", title:"Улучши комнату",
@@ -1410,12 +1414,20 @@ function chainStep(){
 }
 function syncQuestFromState(){
   if(!S) return;
-  let idx=QUEST_CHAIN.length;
-  for(let i=0;i<QUEST_CHAIN.length;i++){
-    try{ if(!QUEST_CHAIN[i].done()){ idx=i; break; } }catch(e){ idx=i; break; }
+  S.questFlags=S.questFlags||{};
+  S.questFlags.completed=S.questFlags.completed||{};
+  // Completed steps stay completed after their documents or suspects move on.
+  let idx=Math.max(0,Math.min(QUEST_CHAIN.length,Number(S.questIdx)||0));
+  if(!S.questFlags.migratedV8){
+    if((S.stats.interrogs||0)>0) idx=Math.max(idx,9);
+    if(S.rooms.cells.in>0) idx=Math.max(idx,10);
+    S.questFlags.migratedV8=true;
   }
+  if(S.guideDone) idx=QUEST_CHAIN.length;
+  for(let i=0;i<idx;i++) S.questFlags.completed[QUEST_CHAIN[i].id]=true;
+  while(idx<QUEST_CHAIN.length && S.questFlags.completed[QUEST_CHAIN[idx].id]) idx++;
   S.questIdx=idx;
-  S.guideDone = idx>=QUEST_CHAIN.length;
+  S.guideDone=idx>=QUEST_CHAIN.length;
   if(S.guideDone) S.tut=99;
 }
 function ongoingQuest(){
@@ -1449,6 +1461,9 @@ function completeQuest(force){
   if(!st){ updateQuest(); return; }
   try{ if(!force && st.done && !st.done()) return; }catch(e){}
   _questLock=true;
+  S.questFlags.completed=S.questFlags.completed||{};
+  S.questFlags.completed[st.id]=true;
+  S.questIdx=(S.questIdx||0)+1;
   if(st.reward){
     addRes("cash", st.reward);
     const hs=document.querySelector("#questbar")||document.body;
@@ -1472,7 +1487,7 @@ function enterQuest(){
   const st=chainStep();
   if(!st) return;
   try{ if(st.enter) st.enter(); }catch(e){ console.warn(e); }
-  setTimeout(()=>{ followQuest(true); if(st.nika) showNikaTip(st.nika); }, 200);
+  setTimeout(()=>{ if(chainStep()?.id===st.id && st.nika) showNikaTip(st.nika); }, 200);
 }
 function showNikaTip(text){
   const box=$("#nikatip"), p=$("#nikatiptxt");
@@ -1510,7 +1525,7 @@ function guideEvent(ev){
     setTimeout(()=>{
       try{
         if(!chainStep() || chainStep().id!==st.id) return;
-        if(!st.done || st.done() || waits.includes(ev)) completeQuest(true);
+        if(!st.done || st.done()) completeQuest();
       }catch(e){ completeQuest(); }
     }, 30);
     return;
@@ -1527,7 +1542,7 @@ function finishGuide(){
   S._nextSp=SPAWN_MIN+Math.random()*(SPAWN_MAX-SPAWN_MIN);
   placePointer();
   updateQuest();
-  showNikaTip("Обучение пропущено. Нажмите «?» — я всегда подскажу, что делать дальше.");
+  showNikaTip("Обучение пропущено. Нажмите «Перейти» — откроется комната текущего задания.");
   mark();
 }
 window.__skipGuide=finishGuide;
@@ -1555,27 +1570,22 @@ function updateQuest(){
   placePointer();
 }
 function followQuest(silent){
+  if(silent) return;
   const q=questInfo();
-  if(TAB!=="station" && q.sel && !/tab-/.test(q.sel||"")) setTab("station");
-  const force=!silent; // user tapped «?» / bar — always go there; new step does not if they are scrolling
-  if(force){ _userScrollAt=0; cancelAutoScroll(); }
-  if(q.room) scrollToRoom(q.room, {force:force, smooth:true});
-  else if(q.sel){
-    const el=document.querySelector(q.sel.split(",")[0].trim());
-    if(el && (force || el.closest("#stage") || el.closest("#tabs"))){
-      if(el.closest("#stage")) scrollStageToEl(el, {force:force, smooth:true});
-      else if(force && el.scrollIntoView){
-        try{ el.scrollIntoView({block:"nearest", inline:"nearest", behavior:"smooth"}); }catch(e){}
-      }
-    }
-  }
-  if(!silent && q.nika) showNikaTip(q.nika);
-  setTimeout(()=>placePointer(), 280);
+  closeNikaTip(); closeModal(); closeIq(); closeCinema();
+  if(q.id==="shop"){ setTab("shop"); return; }
+  setTab("station");
+  if(q.room){
+    _userScrollAt=0; cancelAutoScroll();
+    scrollToRoom(q.room,{force:true,smooth:false});
+    openRoom(q.room);
+  }else if(q.nika) showNikaTip(q.nika);
 }
 function placePointer(){
   const p=$("#pointer"), ring=$("#pulsering");
   const hide=()=>{ if(p) p.classList.add("hidden"); if(ring) ring.classList.add("hidden"); };
   if(!p) return;
+  if(TAB!=="station" || !$("#modal").classList.contains("hidden")){ hide(); return; }
   if(!$("#iq").classList.contains("hidden") || !$("#cinema").classList.contains("hidden")){
     hide(); return;
   }
@@ -1611,9 +1621,10 @@ function layoutCoach(){ placeToasts(); }
 function frame(ts){
   const dt=Math.min(0.08,(ts-lastTs)/1000||0.016);
   lastTs=ts;
+  if(document.hidden){ lastTs=ts; requestAnimationFrame(frame); return; }
   tick(dt);
   lastView+=dt;
-  if(lastView>0.08){ lastView=0; renderActors(); renderBubbles(); renderLabels(); placePointer();
+  if(lastView>0.08){ lastView=0; if(TAB==="station"){ renderActors(); renderBubbles(); renderLabels(); placePointer(); }
     const st=typeof chainStep==="function"&&chainStep(); if(st&&st.done&&!_questLock){ try{ if(st.done()) completeQuest(); }catch(e){} }
   }
   acc+=dt;
@@ -1635,8 +1646,8 @@ async function start(){
   ];
   let n=0;
   const set=()=>{n++; ld.style.width=Math.round(10+n/assets.length*90)+"%"; txt.textContent="Загрузка "+n+"/"+assets.length;};
-  await document.fonts.ready;
-  await Promise.all(assets.map(src=>new Promise(res=>{const i=new Image();i.onload=i.onerror=()=>{set();res();};i.src=src;})));
+  await Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,1500))]);
+  await Promise.all(assets.map(src=>new Promise(res=>{const i=new Image();let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);set();res();};const timer=setTimeout(finish,5000);i.onload=i.onerror=finish;i.src=src;})));
   const existed=load();
   AU.muted=!!S.muted;
   hud();
@@ -1698,9 +1709,9 @@ if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{
     let refreshing=false;
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
-      if(refreshing) return; refreshing=true; location.reload();
+      if(refreshing) return; refreshing=true; if(S) save(); location.reload();
     });
-    navigator.serviceWorker.register("sw.js?v=7").then(reg=>{
+    navigator.serviceWorker.register("sw.js?v=8").then(reg=>{
       setInterval(()=>reg.update(), 60*1000);
       reg.addEventListener("updatefound",()=>{
         const w=reg.installing;

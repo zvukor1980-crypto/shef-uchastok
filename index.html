@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Участок">
 <meta name="theme-color" content="#1a6db5">
 <meta name="description" content="Управляйте полицейским участком: принимайте заявления, расследуйте дела, проводите допросы и улучшайте комнаты.">
-<link rel="manifest" href="manifest.webmanifest?v=7">
+<link rel="manifest" href="manifest.webmanifest?v=8">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="favicon.png">
 <style>
@@ -30,7 +30,7 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
 #loading{position:absolute;inset:0;z-index:50}
 #cinema .unlock-room{width:70%;max-width:280px;max-height:40vh;object-fit:contain}
 </style>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <div id="app">
@@ -59,12 +59,13 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
           <b id="queststep">Шаг 1 из 12</b>
           <span id="questtxt">Посади дежурную за стол</span>
         </div>
-        <button type="button" class="qb-help" data-act="questhelp" data-testid="quest-help" aria-label="Что делать?" title="Что делать?">?</button>
+        <button type="button" class="qb-help" data-act="questhelp" data-testid="quest-help" aria-label="Перейти к заданию" title="Перейти к заданию">Перейти →</button>
         <button type="button" class="qb-skip hidden" id="questskip" data-act="guideskip" data-testid="quest-skip">Пропустить</button>
         <i id="combobadge" class="hidden">×1</i>
       </div>
     </header>
 
+    <div id="roomnav" aria-label="Быстрый доступ к комнатам"><button data-act="open" data-arg="reception">Приёмная</button><button data-act="open" data-arg="detective">Детектив</button><button data-act="open" data-arg="garage">Патруль</button><button data-act="open" data-arg="interrog">Допрос</button><button data-act="open" data-arg="cells">Камеры</button><button data-act="open" data-arg="chief">Шеф</button></div>
     <div id="stage">
       <div id="precinct">
         <div id="campus">
@@ -119,54 +120,7 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
   <div id="modal" class="hidden"></div>
   <div id="toasts"></div>
 </div>
-<script>
-/* Safety net if an old SW still serves stale CSS/JS: never let a character fill the screen, always allow skip/close. */
-(function(){
-  function cap(){
-    var imgs=document.querySelectorAll("img");
-    for(var i=0;i<imgs.length;i++){
-      var el=imgs[i], cls=(el.className||"")+" "+(el.id||"")+" "+(el.parentNode&&el.parentNode.id||"");
-      if(/ld-icon/.test(cls)){ el.style.maxWidth="128px"; el.style.maxHeight="20vh"; el.style.width="128px"; }
-      else if(/avatar/.test(cls) && !/qb-ava/.test(cls)){ el.style.maxWidth="48px"; el.style.maxHeight="48px"; el.style.width="48px"; el.style.height="48px"; el.style.objectFit="cover"; }
-      else if(/qb-ava|questbar/.test(cls)){ el.style.maxWidth="36px"; el.style.maxHeight="36px"; el.style.width="36px"; el.style.height="36px"; el.style.objectFit="cover"; }
-      else if(/nikatip/.test(cls)){ el.style.maxWidth="36px"; el.style.maxHeight="36px"; el.style.width="36px"; el.style.height="36px"; el.style.objectFit="cover"; }
-      else if(/coachava|coach/.test(cls)){ el.style.maxWidth="92px"; el.style.maxHeight="28vh"; el.style.width="92px"; el.style.height="auto"; el.style.objectFit="contain"; }
-      else if(el.closest && (el.closest(".actor")||el.closest("#actors"))){ el.style.maxHeight="28vh"; el.style.maxWidth="18vw"; el.style.height="auto"; }
-      else if(el.closest && el.closest(".wing")){ el.style.maxWidth="100%"; el.style.width="100%"; el.style.height="auto"; el.style.maxHeight="none"; }
-      else if(el.closest && (el.closest(".hcard")||el.closest(".seat")||el.closest(".reveal")||el.closest(".flip-face")||el.closest(".iq-card")||el.closest(".assignee"))){ el.style.maxWidth="100%"; el.style.maxHeight="42vh"; }
-    }
-  }
-  var skipped=false;
-  function hide(id){ var n=document.getElementById(id); if(n){ n.classList.add("hidden"); n.style.display="none"; } }
-  function skipGuide(){
-    skipped=true;
-    hide("coach"); hide("pointer");
-    try{
-      var k="shef-uchastok-v3";
-      var raw=localStorage.getItem(k);
-      var o=raw?JSON.parse(raw):{};
-      o.guideDone=true; o.guideStep=99; o.tut=99;
-      localStorage.setItem(k, JSON.stringify(o));
-    }catch(e){}
-    if(typeof window.__skipGuide==="function") try{ window.__skipGuide(); }catch(e){}
-  }
-  document.addEventListener("click", function(ev){
-    var t=ev.target;
-    var act=t.closest && t.closest("[data-act]");
-    var a=act && act.getAttribute("data-act");
-    if(a==="guideskip"){ skipGuide(); return; }
-    if(t.id==="modal" || t.id==="cinema" || t.id==="iq"){
-      if(t.id==="modal" && window.__GAME) try{ window.__GAME().closeModal(); }catch(e){ hide("modal"); }
-      if(t.id==="cinema") hide("cinema");
-      if(t.id==="iq") hide("iq");
-    }
-  }, true);
-  cap();
-  setInterval(function(){ cap(); if(skipped){ hide("coach"); hide("pointer"); } }, 800);
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", cap);
-})();
-</script>
-<script src="data.js?v=7"></script>
-<script src="game.js?v=7"></script>
+<script src="data.js?v=8"></script>
+<script src="game.js?v=8"></script>
 </body>
 </html>

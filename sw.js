@@ -1,56 +1,38 @@
-/* policeuch-v7: network-first for HTML/JS/CSS so iOS never mixes a new page with a stale stylesheet.
-   Images/fonts are cache-first. All previous caches are deleted on activate. */
-const CACHE='policeuch-v7';
-const SHELL=/\.(?:js|css|webmanifest)$/i;
-
-self.addEventListener('install', e=>{
-  e.waitUntil(self.skipWaiting());
-});
-
-self.addEventListener('activate', e=>{
-  e.waitUntil((async()=>{
-    const keys=await caches.keys();
-    await Promise.all(keys.map(k=>caches.delete(k)));
-    await self.clients.claim();
-  })());
-});
-
-self.addEventListener('message', e=>{
-  if(e.data && e.data.type==='SKIP') self.skipWaiting();
-});
-
-function sameOrigin(req){
-  try{ return new URL(req.url).origin===self.location.origin; }catch{ return false; }
-}
-function isShell(req){
-  if(req.mode==='navigate') return true;
-  const p=new URL(req.url).pathname;
-  if(p.endsWith('/') || p.endsWith('/index.html') || /\/sw\.js$/.test(p)) return true;
-  return SHELL.test(p);
-}
-
-self.addEventListener('fetch', e=>{
-  if(e.request.method!=='GET') return;
-  if(!sameOrigin(e.request)) return;
-  if(isShell(e.request)){
-    e.respondWith(
-      fetch(e.request, {cache:'no-store'}).then(res=>{
-        if(res && res.ok){
-          const cp=res.clone();
-          caches.open(CACHE).then(c=>c.put(e.request, cp)).catch(()=>{});
-        }
-        return res;
-      }).catch(()=>caches.match(e.request).then(r=>r || caches.match('./index.html') || caches.match('/index.html')))
-    );
-    return;
-  }
-  e.respondWith(
-    caches.match(e.request, {ignoreSearch:true}).then(hit=> hit || fetch(e.request).then(res=>{
-      if(res && res.ok){
-        const cp=res.clone();
-        caches.open(CACHE).then(c=>c.put(e.request, cp)).catch(()=>{});
-      }
+/* v8: app-scoped caches, bounded network waits, offline shell fallback. */
+const CACHE='policeuch-v8';
+const SHELL=['./','./index.html','./style.css?v=8','./data.js?v=8','./game.js?v=8','./manifest.webmanifest?v=8'];
+self.addEventListener('install',event=>event.waitUntil((async()=>{
+  const cache=await caches.open(CACHE);
+  await cache.addAll(SHELL);
+  await self.skipWaiting();
+})()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  for(const key of await caches.keys()) if(key.startsWith('policeuch-')&&key!==CACHE) await caches.delete(key);
+  await self.clients.claim();
+})()));
+self.addEventListener('message',event=>{if(event.data?.type==='SKIP') self.skipWaiting();});
+self.addEventListener('fetch',event=>{
+  const req=event.request,url=new URL(req.url);
+  if(req.method!=='GET'||url.origin!==self.location.origin) return;
+  const shell=req.mode==='navigate'||/\.(js|css|webmanifest)$/.test(url.pathname);
+  event.respondWith((async()=>{
+    const cache=await caches.open(CACHE);
+    const cached=await cache.match(req,{ignoreSearch:!shell});
+    if(!shell && cached) return cached;
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),4000);
+    try{
+      const res=await fetch(req,{signal:ctrl.signal,cache:shell?'no-cache':'default'});
+      if(res.ok){await cache.put(req,res.clone());return res;}
+      if(cached) return cached;
       return res;
-    }))
-  );
+    }catch(error){
+      if(cached) return cached;
+      if(req.mode==='navigate'){
+        const fallback=await cache.match('./index.html');
+        if(fallback) return fallback;
+      }
+      return new Response('Ресурс пока недоступен офлайн',{status:503});
+    }finally{clearTimeout(timer);}
+  })());
 });

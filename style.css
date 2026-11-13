@@ -755,3 +755,28 @@ canvas.face{display:block;width:100%;height:auto;background:transparent}
   #questbar{min-height:48px}
   .sat-row{display:none}
 }
+
+/* v20: selected tab keeps its color; tutorial ring does not bounce over the shop. */
+#pulsering,#pointer{display:none!important;animation:none!important}
+.abub,.abub.gold,.abub.red{animation:none!important}
+#tabs .tab.on{
+  background:linear-gradient(180deg,#6eb6ff,#1d5ed8)!important;
+  color:#fff!important;
+  transform:none;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.7),0 4px 0 #143e86!important;
+}
+#tabs .tab.on[data-arg="heroes"]{
+  background:linear-gradient(180deg,#ffe08a,#e6a51a)!important;
+  color:#5a3a08!important;
+  box-shadow:inset 0 2px 0 #fff8,0 4px 0 #8a6410!important;
+}
+#tabs .tab.on[data-arg="tasks"]{
+  background:linear-gradient(180deg,#c4a6ff,#6d42d4)!important;
+  color:#fff!important;
+  box-shadow:inset 0 2px 0 #fff6,0 4px 0 #43208a!important;
+}
+#tabs .tab.on.shop,#tabs .tab.on[data-arg="shop"]{
+  background:linear-gradient(180deg,#ff8aaf,#e23b6a)!important;
+  color:#fff!important;
+  box-shadow:inset 0 2px 0 #fff6,0 4px 0 #9a2048!important;
+}

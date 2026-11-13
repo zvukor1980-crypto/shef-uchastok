@@ -227,15 +227,27 @@ window.Scene = (() => {
 
   function plaque(c, cx, y, en, he, d, maxW){
     c.save();
-    const size = Math.max(8, Math.min(12, (maxW || 140) / 14));
+    const limit = Math.max(48, maxW || 150);
+    let size = 12;
     c.font = "800 " + size + "px Nunito, sans-serif";
-    let tw = c.measureText(en || "").width;
-    while(tw > (maxW || 160) - 20 && size > 8){
-      c.font = "800 " + (size - 1) + "px Nunito, sans-serif";
-      tw = c.measureText(en || "").width;
+    let enW = c.measureText(en || "").width;
+    while(enW > limit - 14 && size > 7){
+      size -= 0.5;
+      c.font = "800 " + size + "px Nunito, sans-serif";
+      enW = c.measureText(en || "").width;
     }
-    const w = Math.min(maxW || tw + 22, tw + 22), h = he ? 30 : 18;
+    let hsize = Math.min(11, size);
+    c.font = "700 " + hsize + "px NotoSerifHebrew, serif";
+    let heW = he ? c.measureText(he).width : 0;
+    while(he && heW > limit - 14 && hsize > 7){
+      hsize -= 0.5;
+      c.font = "700 " + hsize + "px NotoSerifHebrew, serif";
+      heW = c.measureText(he).width;
+    }
+    const inner = Math.max(enW, heW);
+    const w = Math.min(limit, Math.max(36, inner + 16)), h = he ? 30 : 18;
     const x = cx - w / 2;
+    const fit = inner > w - 12 ? (w - 12) / inner : 1;
     const col = (d && d.lacquer) ? "#12386f" : "#1a4f9c";
     const g = c.createLinearGradient(x, y, x, y + h);
     g.addColorStop(0, shade(col, 1.35));
@@ -254,11 +266,14 @@ window.Scene = (() => {
     c.fillStyle = "#fffaf0";
     c.textAlign = "center";
     c.textBaseline = "middle";
-    c.fillText(en || "", cx, y + (he ? 10 : h / 2));
+    c.translate(cx, 0);
+    c.scale(fit, 1);
+    c.font = "800 " + size + "px Nunito, sans-serif";
+    c.fillText(en || "", 0, y + (he ? 10 : h / 2));
     if(he){
-      c.font = "700 " + Math.max(8, size - 1) + "px NotoSerifHebrew, serif";
+      c.font = "700 " + hsize + "px NotoSerifHebrew, serif";
       c.fillStyle = "#ffe7a3";
-      c.fillText(he, cx, y + 21);
+      c.fillText(he, 0, y + 21);
     }
     c.restore();
   }
@@ -380,8 +395,8 @@ window.Scene = (() => {
     const {x, y, w, h} = r;
     const lv = d.level || 1;
     if(id === "reception" || id === "chief" || id === "press"){
-      windowView(c, x + w * 0.68, y + h * 0.05, w * 0.22, h * 0.16);
-      if(lv >= 5) windowView(c, x + w * 0.08, y + h * 0.05, w * 0.16, h * 0.14);
+      windowView(c, x + w * 0.68, y + h * 0.22, w * 0.2, h * 0.14);
+      if(lv >= 5) windowView(c, x + w * 0.08, y + h * 0.22, w * 0.16, h * 0.12);
       desk(c, x + w * 0.16, y + h * 0.4, w * 0.58, h * 0.22, lv >= 9 ? "#102e66" : "#1a56b0", d);
       const n = Math.min(3, d.monitors || 1);
       for(let i = 0; i < n; i++) monitor(c, x + w * (0.24 + i * 0.14), y + h * 0.28, w * 0.12, h * 0.12);
@@ -400,7 +415,7 @@ window.Scene = (() => {
         star(c, x + w * 0.88, y + h * 0.15, w * 0.012, "#0038b8");
       }
     }else if(id === "detective" || id === "suggest" || id === "armory"){
-      windowView(c, x + w * 0.7, y + h * 0.05, w * 0.2, h * 0.14);
+      windowView(c, x + w * 0.7, y + h * 0.22, w * 0.18, h * 0.12);
       c.fillStyle = "#d7b07a";
       rr(c, x + w * 0.08, y + h * 0.05, w * 0.46, h * 0.16, 4);
       c.fill();
@@ -438,7 +453,7 @@ window.Scene = (() => {
       chair(c, x + w * 0.32, y + h * 0.32, w * 0.14, h * 0.14, "#243044");
       chair(c, x + w * 0.54, y + h * 0.64, w * 0.14, h * 0.14, "#1a4f9c");
       if(lv >= 4){
-        windowView(c, x + w * 0.06, y + h * 0.08, w * 0.2, h * 0.16);
+        windowView(c, x + w * 0.06, y + h * 0.22, w * 0.18, h * 0.14);
         c.fillStyle = "rgba(190,220,255,.22)";
         c.fillRect(x + w * 0.06, y + h * 0.08, w * 0.2, h * 0.16);
       }
@@ -471,7 +486,7 @@ window.Scene = (() => {
         c.fillRect(x + w * 0.33, y + h * 0.28, w * 0.04, h * 0.14);
         c.fillRect(x + w * 0.49, y + h * 0.28, w * 0.04, h * 0.14);
       }
-      if(d.glass) windowView(c, x + w * 0.36, y + h * 0.06, w * 0.28, h * 0.12);
+      if(d.glass) windowView(c, x + w * 0.36, y + h * 0.2, w * 0.26, h * 0.1);
       for(let i = 0; i < Math.min(2, d.plants || 0); i++) plant(c, x + w * (0.9), y + h * (0.7 + i * 0.02), h * 0.16);
     }else if(id === "electric"){
       const panels = 2 + Math.min(4, lv);
@@ -673,8 +688,6 @@ window.Scene = (() => {
     rooms.forEach(o => {
       const locked = S.chiefLv < (ROOMS[o.id].unlock || 1);
       const d = locked ? roomDecorTier(1) : roomDecorTier(S.rooms[o.id].level);
-      const sign = (typeof ROOM_SIGNS !== "undefined" && ROOM_SIGNS[o.id]) || {en:o.id, he:""};
-      plaque(c, o.r.x + o.r.w / 2, y + 6, sign.en, sign.he, d, o.r.w * 0.92);
       if(locked){
         padlock(c, o.r.x + o.r.w / 2, y + h * 0.58, Math.min(o.r.w, h) * 0.12);
         c.fillStyle = "#fffaf0";
@@ -703,8 +716,8 @@ window.Scene = (() => {
     });
     if(rooms.some(o => o.id === "reception")){
       const rec = rooms.find(o => o.id === "reception").r;
-      const bw = Math.min(78, rec.w * 0.42), bh = 72;
-      const bx = rec.x + 8, by = y + h * 0.16;
+      const bw = Math.min(78, rec.w * 0.42), bh = 64;
+      const bx = rec.x + 8, by = y + h * 0.46;
       const g = c.createLinearGradient(bx, by, bx, by + bh);
       g.addColorStop(0, "#3d7ad8");
       g.addColorStop(1, "#143e86");
@@ -989,9 +1002,9 @@ window.Scene = (() => {
 
   function drawWoman(c, look, style, phase, mode, H){
     const k = kit(style, look);
-    const bob = mode === "walk" ? -Math.abs(Math.sin(phase * 8)) * H * 0.035 : Math.sin(phase * 1.7) * H * 0.012;
-    const sway = mode === "walk" ? Math.sin(phase * 8) * 0.05 : Math.sin(phase * 1.2) * 0.02;
-    const step = mode === "walk" ? Math.sin(phase * 8) : mode === "inspect" ? 0.25 : 0;
+    const bob = mode === "walk" ? -Math.abs(Math.sin(phase * 3)) * 2 : Math.sin(phase * 1.35) * 1.1;
+    const sway = mode === "walk" ? Math.sin(phase * 3) * 0.035 : Math.sin(phase * 1.15) * 0.012;
+    const step = mode === "walk" ? Math.sin(phase * 3) : mode === "inspect" ? 0.2 : 0;
     c.save();
     c.translate(0, bob);
     c.rotate(sway);
@@ -1150,7 +1163,7 @@ window.Scene = (() => {
   }
 
   function drawDog(c, phase, sc){
-    const wag = Math.sin(phase * 6);
+    const wag = Math.sin(phase * 2.2);
     const step = Math.sin(phase * 8);
     c.fillStyle = "rgba(40,24,8,.25)";
     c.beginPath();
@@ -1472,7 +1485,7 @@ window.Scene = (() => {
       }
     }
     const list = [];
-    const fig = Math.max(72, Math.min(118, wh * 0.15));
+    const fig = Math.max(64, Math.min(92, wh * 0.118));
     if(S.actors){
       for(const a of S.actors){
         if(a.life === 0) continue;
@@ -1495,7 +1508,7 @@ window.Scene = (() => {
       const look = LOOK[a.hid || a.spr] || LOOK.nika;
       const dog = a.kind === "dog" || a.spr === "rika";
       const mode = jobOf(a, S);
-      const phase = t * (reduce ? 0.25 : 1) + (a.phase || 0);
+      const phase = t * (reduce ? 0.35 : 1) + (a.phase || 0);
       const hop = a.react > 0 ? Math.sin(Math.min(1, a.react) * Math.PI) * -8 : 0;
       const Hh = dog ? fig * 0.72 : (a.kind === "inmate" ? fig * 0.9 : fig);
       c.save();
@@ -1522,6 +1535,17 @@ window.Scene = (() => {
       if(a.say) bubble(c, p.x, p.y - Hh - 8, a.say);
       hits.push({id:a.id, x:p.x - Hh * 0.22, y:p.y - Hh, w:Hh * 0.44, h:Hh + 12});
       if(a.react > 0) a.react = Math.max(0, a.react - 0.016);
+    }
+    paintSigns(c, S);
+  }
+  function paintSigns(c, S){
+    if(typeof ROOM_ORDER === "undefined" || typeof roomDecorTier !== "function") return;
+    for(const id of ROOM_ORDER){
+      const r = roomRect(id);
+      const locked = S.chiefLv < (ROOMS[id].unlock || 1);
+      const d = locked ? roomDecorTier(1) : roomDecorTier((S.rooms[id] && S.rooms[id].level) || 1);
+      const sign = (typeof ROOM_SIGNS !== "undefined" && ROOM_SIGNS[id]) || {en:id, he:""};
+      plaque(c, r.x + r.w / 2, r.y + 5, sign.en, sign.he, d, Math.max(48, r.w - 8));
     }
   }
 

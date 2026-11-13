@@ -278,17 +278,46 @@ function addActor(o){
   return o;
 }
 function say(a,text,dur){ a.say=text; a.sayT=dur||2.8; }
-function walkTo(a,x,y,spd){ a.tx=x; a.ty=y; a.spd=spd||18; a.walk=true; }
+function walkTo(a,x,y,spd){ a.tx=x; a.ty=y; a.spd=spd||10; a.walk=true; a.rest=0; }
+function clampNum(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function clampActor(a){
+  if(a.kind==="hero" && a.roam && LAYOUT[a.roam]){
+    const L=LAYOUT[a.roam];
+    const x0=L.l+L.w*0.2, x1=L.l+L.w*0.8, y0=L.t+L.h*0.6, y1=L.t+L.h*0.9;
+    a.x=clampNum(a.x,x0,x1); a.y=clampNum(a.y,y0,y1);
+    if(a.tx!=null){ a.tx=clampNum(a.tx,x0,x1); a.ty=clampNum(a.ty,y0,y1); }
+  }else if(a.box && (a.kind==="ambient"||a.kind==="dog")){
+    a.x=clampNum(a.x,a.box[0],a.box[2]); a.y=clampNum(a.y,a.box[1],a.box[3]);
+    if(a.tx!=null){ a.tx=clampNum(a.tx,a.box[0],a.box[2]); a.ty=clampNum(a.ty,a.box[1],a.box[3]); }
+  }
+}
+function separateActors(){
+  const list=S.actors.filter(a=>a.life!==0);
+  for(let i=0;i<list.length;i++){
+    for(let j=i+1;j<list.length;j++){
+      const a=list[i], b=list[j];
+      if((a.wing||1)!==(b.wing||1)) continue;
+      const dx=b.x-a.x, dy=b.y-a.y;
+      const dist=Math.hypot(dx,dy)||0.001;
+      const min=(a.kind==="dog"||b.kind==="dog")?8:6.5;
+      if(dist>=min) continue;
+      const push=(min-dist)*0.4, nx=dx/dist, ny=dy/dist;
+      if(a.kind!=="inmate"){ a.x-=nx*push; a.y-=ny*push; }
+      if(b.kind!=="inmate"){ b.x+=nx*push; b.y+=ny*push; }
+    }
+  }
+  for(const a of list) clampActor(a);
+}
 
 function ensureAmbience(){
   if(!S.actors.some(a=>a.kind==="dog")){
-    addActor({kind:"dog", spr:"rika", wing:1, x:70, y:66, tx:70, ty:66, box:[58,60,90,70], life:1, phase:1});
+    addActor({kind:"dog", spr:"rika", wing:1, x:18, y:88, tx:18, ty:88, box:[12,80,32,94], life:1, phase:1, rest:2.4});
   }
   if(!S.actors.some(a=>a.spr==="liana")){
-    addActor({kind:"ambient", spr:"liana", wing:1, x:16, y:34, box:[8,26,40,42], life:1, phase:2, job:"patrol"});
+    addActor({kind:"ambient", spr:"liana", wing:1, x:16, y:38, box:[10,34,36,42], life:1, phase:2, job:"patrol", rest:1.6});
   }
   if(!S.actors.some(a=>a.spr==="tamar")){
-    addActor({kind:"ambient", spr:"tamar", wing:1, x:78, y:34, box:[56,26,92,42], life:1, phase:3.4, job:"files"});
+    addActor({kind:"ambient", spr:"tamar", wing:1, x:78, y:38, box:[60,34,90,42], life:1, phase:3.4, job:"files", rest:2.1});
   }
 }
 function spawnStaff(popHid){
@@ -301,7 +330,7 @@ function spawnStaff(popHid){
     if(!hid || !S.heroes[hid]?.owned) continue;
     if(S.chiefLv<ROOMS[id].unlock) continue;
     const L=LAYOUT[id];
-    const a=addActor({kind:"hero", hid, spr:hid, wing:L.wing, x:L.ax, y:L.ay, tx:L.ax, ty:L.ay, walk:false, life:1, roam:id, pop:hid===popHid});
+    const a=addActor({kind:"hero", hid, spr:hid, wing:L.wing, x:L.ax, y:L.ay, tx:L.ax, ty:L.ay, walk:false, life:1, roam:id, pop:hid===popHid, rest:2.5+Math.random()*2});
     if(hid===popHid){ say(a, pick(SAY_START), 4); a.quiet=5; }
   }
 }
@@ -518,42 +547,48 @@ function tick(dt){
   }
 
   for(const a of S.actors){
-    a.phase+=dt*(a.walk?10:2);
     if(a.sayT>0){ a.sayT-=dt; if(a.sayT<=0) a.say=null; }
-    if(a.tx!=null){
+    if(a.tx!=null && a.walk){
       const dx=a.tx-a.x, dy=a.ty-a.y, dist=Math.hypot(dx,dy);
-      if(dist<0.4){
+      if(!(dist>0) || dist<0.08){
         a.x=a.tx; a.y=a.ty; a.walk=false;
-        if(a._then){ a.wing=a._then.wing; a.x=a._then.x; a.y=a._then.y-8; walkTo(a,a._then.x,a._then.y,20); a._then=null; }
+        a.rest=2.4+Math.random()*2.6;
+        if(a._then){ a.wing=a._then.wing; a.x=a._then.x; a.y=a._then.y-8; walkTo(a,a._then.x,a._then.y,12); a._then=null; }
         else if(a._fade||a.state==="xfer"||a.state==="leave"){ if(!a.walk) a.life=0; }
       }else{
-        const sp=(a.spd||16)*dt;
-        a.x+=dx/dist*Math.min(sp,dist);
-        a.y+=dy/dist*Math.min(sp,dist);
-        a.walk=true;
-        a.flip=dx<0;
+        const spd=Math.max(3, Math.min(a.spd||9, 14));
+        const ease=0.4+Math.min(dist,8)/10;
+        const step=Math.min(dist, spd*dt*ease);
+        a.x+=dx/dist*step;
+        a.y+=dy/dist*step;
+        if(Math.abs(dx)>0.45) a.flip=dx<0;
       }
-    }
+    }else if(a.rest>0) a.rest-=dt;
   }
   S.actors=S.actors.filter(a=>a.life!==0);
 
   for(const a of S.actors){
-    if((a.kind==="ambient"||a.kind==="dog") && a.box && !a.walk && Math.random()<0.004){
-      walkTo(a, a.box[0]+Math.random()*(a.box[2]-a.box[0]), a.box[1]+Math.random()*(a.box[3]-a.box[1]), a.kind==="dog"?7:10);
-    }else if(a.kind==="hero" && a.roam && !a.walk && Math.random()<0.003){
+    if(a.kind==="hero" && a.quiet>0) a.quiet-=dt;
+    if(a.walk || (a.rest||0)>0) continue;
+    if((a.kind==="ambient"||a.kind==="dog") && a.box && Math.random()<dt*0.18){
+      const x=a.box[0]+Math.random()*(a.box[2]-a.box[0]);
+      const y=a.box[1]+Math.random()*(a.box[3]-a.box[1]);
+      walkTo(a, x, y, a.kind==="dog"?5:6);
+    }else if(a.kind==="hero" && a.roam && LAYOUT[a.roam] && Math.random()<dt*0.08){
       const L=LAYOUT[a.roam];
-      walkTo(a, L.ax+(Math.random()*8-4), L.ay+(Math.random()*5-2), 8);
+      walkTo(a, L.l+L.w*(0.28+Math.random()*0.44), L.t+L.h*(0.64+Math.random()*0.22), 4.5);
     }
-    if(a.kind==="hero"){ if(a.quiet>0) a.quiet-=dt; else if(!a.say && Math.random()<0.0007) say(a, pick(SAY.staff), 2.2); }
-    if(a.kind==="inmate" && !a.say && Math.random()<0.0007) say(a, pick(SAY.inmate), 2.2);
+    if(a.kind==="hero" && a.quiet<=0 && !a.say && Math.random()<dt*0.04) say(a, pick(SAY.staff), 2.2);
+    if(a.kind==="inmate" && !a.say && Math.random()<dt*0.03) say(a, pick(SAY.inmate), 2.2);
   }
+  separateActors();
   syncInmates();
 }
 
 function syncInmates(){
   const need=S.rooms.cells.in|0;
   let have=S.actors.filter(a=>a.kind==="inmate"&&a.state==="sit").length;
-  const slots=[{x:60,y:62},{x:72,y:63},{x:84,y:62},{x:68,y:66}];
+  const slots=[{x:58,y:56},{x:72,y:55},{x:86,y:56},{x:74,y:60}];
   while(have<need && have<slots.length){
     const s=slots[have];
     const looks=["roni","shira","maya","miriam"];
@@ -1712,38 +1747,9 @@ function followQuest(silent){
 }
 function placePointer(){
   const p=$("#pointer"), ring=$("#pulsering");
-  const hide=()=>{ if(p) p.classList.add("hidden"); if(ring) ring.classList.add("hidden"); };
-  if(!p) return;
-  if(TAB!=="station" || !$("#modal").classList.contains("hidden")){ hide(); return; }
-  if(!$("#iq").classList.contains("hidden") || !$("#cinema").classList.contains("hidden")){
-    hide(); return;
-  }
+  if(p) p.classList.add("hidden");
+  if(ring) ring.classList.add("hidden");
   const box=$("#coach"); if(box) box.classList.add("hidden");
-  const sel=S && S._questSel;
-  if(!sel){ hide(); return; }
-  let el=null;
-  for(const s of sel.split(",")){
-    const n=document.querySelector(s.trim());
-    if(!n) continue;
-    const r=n.getBoundingClientRect();
-    const vis=r.width>2 && r.height>2 && r.bottom>60 && r.top<innerHeight-50 && getComputedStyle(n).display!=="none" && getComputedStyle(n).visibility!=="hidden";
-    if(vis){ el=n; break; }
-    if(!el) el=n;
-  }
-  if(!el){ hide(); return; }
-  const r=el.getBoundingClientRect();
-  if(r.width<2){ hide(); return; }
-  p.classList.remove("hidden");
-  p.style.left=(r.left+r.width/2)+"px";
-  p.style.top=(r.bottom-6)+"px";
-  if(ring){
-    const pad=10;
-    ring.classList.remove("hidden");
-    ring.style.left=(r.left-pad)+"px";
-    ring.style.top=(r.top-pad)+"px";
-    ring.style.width=(r.width+pad*2)+"px";
-    ring.style.height=(r.height+pad*2)+"px";
-  }
 }
 function layoutCoach(){ placeToasts(); }
 
@@ -1883,7 +1889,7 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
       if(refreshing) return; refreshing=true; if(S) save(); location.reload();
     });
-    navigator.serviceWorker.register("sw.js?v=19").then(reg=>{
+    navigator.serviceWorker.register("sw.js?v=20").then(reg=>{
       setInterval(()=>reg.update(), 60*1000);
       reg.addEventListener("updatefound",()=>{
         const w=reg.installing;

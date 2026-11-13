@@ -1,6 +1,6 @@
-/* v19: glossy dollhouse precinct, vector cast, no cutout frames. */
-const CACHE='policeuch-v19';
-const SHELL=['./','./index.html','./style.css?v=19','./data.js?v=19','./render.js?v=19','./game.js?v=19','./manifest.webmanifest?v=19'];
+/* v20: still signs, calm walks, no jumping tutorial ring. */
+const CACHE='policeuch-v20';
+const SHELL=['./','./index.html','./style.css?v=20','./data.js?v=20','./render.js?v=20','./game.js?v=20','./manifest.webmanifest?v=20'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   await cache.addAll(SHELL);

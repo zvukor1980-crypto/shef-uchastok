@@ -783,7 +783,9 @@ function renderLabels(){
 function upsertActor(a, parent, extraClass){
   let el=parent.querySelector('[data-id="'+a.id+'"]');
   const shiny=a.kind==="hero" && HEROES[a.spr] && HEROES[a.spr].suit==="shiny";
-  const cls="actor "+(a.walk?"walk":"idle")+(a.wide?" wide":"")+(a.siren?" siren":"")+(shiny?" shiny":"")+(a.kind==="vip"?" vip":"")+(extraClass?(" "+extraClass):"");
+  const rank=a.kind==="hero"?(S.heroes[a.hid||a.spr]?.level||1):1;
+  const rankStyle=rank>=10?" hero-rank-3":rank>=6?" hero-rank-2":rank>=3?" hero-rank-1":"";
+  const cls="actor "+(a.walk?"walk":"idle")+(a.wide?" wide":"")+(a.siren?" siren":"")+(shiny?" shiny":"")+rankStyle+(a.kind==="vip"?" vip":"")+(extraClass?(" "+extraClass):"");
   if(!el){
     el=document.createElement("div");
     el.dataset.id=a.id;
@@ -1019,7 +1021,7 @@ function openHero(id){
 function setOutfit(arg){
   const [id,color]=arg.split("|");
   const h=S.heroes[id]; if(!h?.owned) return;
-  h.outfit=color; AU.ok(); mark();
+  h.outfit=color; h.outfitPinned=true; AU.ok(); mark();
   spawnStaff(); // refresh src
   openHero(id);
   toast(HEROES[id].name+": "+(OUTFIT_COLORS.find(c=>c.id===color)||{}).name+" форма");
@@ -1028,8 +1030,14 @@ function upHero(id){
   const h=S.heroes[id]; if(!h?.owned)return;
   const cost=heroCost(h.level);
   if(S.cash<cost){toast("Не хватает денег — возьмите в магазине бесплатно");return;}
-  S.cash-=cost; h.level=Math.min(50,h.level+1); addStat("heroActs",1);
-  AU.ok(); toast(HEROES[id].name+" — уровень "+h.level); mark(); hud(); openHero(id);
+  S.cash-=cost; h.level=Math.min(50,h.level+1);
+  // Existing outfit artwork evolves automatically unless the player picked a color.
+  if(!h.outfitPinned && (h.outfit==="black" || h.autoOutfit)){
+    const newColor=h.level>=10?"white":h.level>=6?"purple":h.level>=3?"red":"black";
+    if(h.outfit!==newColor){h.outfit=newColor;h.autoOutfit=true;}
+  }
+  addStat("heroActs",1);
+  AU.ok(); toast(HEROES[id].name+" — уровень "+h.level); mark(); hud(); spawnStaff(id); renderActors(); openHero(id);
 }
 function assignHero(arg){
   const [id,room]=arg.split("|");

@@ -1025,7 +1025,7 @@ function openHero(id){
     <div class="statg"><div class="stat"><b>${h.level}</b><span>уровень</span></div><div class="stat"><b>${h.stars||0}/5</b><span>звёзды</span></div></div>
     <div class="sec">Посадить за стол</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${rooms}</div>
-    <button class="btn wide" data-act="uphero" data-arg="${id}" data-testid="up-hero">Улучшить за ${fmt(cost)} ₪</button>
+    <button class="btn wide" data-act="uphero" data-arg="${id}" data-testid="up-hero">✦ Прокачать за ${fmt(cost)} ₪</button>
     <button class="btn grey wide" data-act="close">Закрыть</button>`);
 }
 function setOutfit(arg){
@@ -1175,6 +1175,22 @@ function openRoom(id){
   }
   renderRoomModal(id);
 }
+function roomVisualTier(level){
+ if(level>=10)return {name:"Легендарный лак",cls:"lux-legend"};
+ if(level>=7)return {name:"Золотой люкс",cls:"lux-gold"};
+ if(level>=4)return {name:"Неоновый премиум",cls:"lux-neon"};
+ if(level>=2)return {name:"Глянцевый ремонт",cls:"lux-gloss"};
+ return {name:"Стартовый интерьер",cls:"lux-basic"};
+}
+const ROOM_DECOR={reception:"✉",detective:"⌕",interrog:"◈",cells:"▦",garage:"🚓",chief:"♛",armory:"⬡",electric:"⚡",suggest:"✿",gasstation:"⛽",press:"◉"};
+function roomVisualHTML(id,level){
+ const tier=roomVisualTier(level);
+ return `<div class="room-visual ${tier.cls}" data-testid="room-visual-${id}" role="img" aria-label="${ROOMS[id].name}: ${tier.name}">
+ <div class="rv-sky"><span>חיפה · HAIFA</span><b>✡</b><span>ים תיכון</span></div>
+ <div class="rv-windows"><i></i><i></i><i></i></div><div class="rv-ceiling">✦ ━━━━━ ✦</div>
+ <div class="rv-furniture"><span>${ROOM_DECOR[id]||"✦"}</span><span>▤</span><span>✦</span></div>
+ <div class="rv-floor"></div><div class="rv-caption">✦ ${tier.name} · уровень ${level}</div></div>`;
+}
 function renderRoomModal(id){
   const d=ROOMS[id], r=S.rooms[id], cost=roomCost(id,r.level);
   const hid=r.hero, def=hid&&HEROES[hid];
@@ -1228,11 +1244,12 @@ function renderRoomModal(id){
     :`<div class="assignee"><div style="width:52px;height:52px;border-radius:12px;background:#e8f3ff;display:flex;align-items:center;justify-content:center">⭐</div>
       <div><b>Стол свободен</b><div class="ms">Посадите сотрудницу — она сразу появится здесь</div></div></div>`;
   openModal(`<div class="mh">${d.name}</div><div class="ms">${FLAVOR[id]||""}</div>
+    ${roomVisualHTML(id,r.level)}
     ${asg}
     ${body}
     <div class="room-actions">${actions}</div>
     <details class="staff-picker" ${r.hero?"":"open"}><summary>Назначить сотрудницу</summary>${seatPicker(id)}</details>
-    ${d.kind!=="mailbox"&&d.kind!=="orders"?`<button class="btn blue wide" data-act="uproom" data-arg="${id}" data-testid="up-room">Улучшить за ${fmt(cost)} ₪</button>`:""}
+    ${d.kind!=="mailbox"&&d.kind!=="orders"?`<button class="btn blue wide" data-act="uproom" data-arg="${id}" data-testid="up-room">✦ Обновить интерьер за ${fmt(cost)} ₪</button>`:""}
     <button class="btn grey wide" data-act="close">Закрыть</button>`);
 }
 function doOrder(id){

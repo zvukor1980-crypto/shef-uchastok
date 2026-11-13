@@ -638,3 +638,35 @@ button:focus-visible{outline:3px solid #ffd85b;outline-offset:2px}
 @keyframes rvGlow{0%,100%{opacity:.6}50%{opacity:1}}
 @media(max-width:365px){.hero-grid{gap:8px}.evolution-card .hn{font-size:13px}.evolution-card .evo-stage{font-size:9px}.rv-caption{font-size:10px}#tabs{gap:3px;padding-inline:3px}#tabs .tab{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.rv-furniture span,.rv-ceiling{animation:none}}
+
+
+/* v14: every room gains an actual visible tier-dependent lacquer interior on the map */
+#hotspots .hotspot{isolation:isolate;overflow:hidden;cursor:pointer;outline:none!important}
+#hotspots .hotspot .room-glass{position:absolute;inset:3% 4%;z-index:1;display:block;overflow:hidden;border-radius:9px;border:2px solid #ffd1fa9e;background:linear-gradient(155deg,#f9c8f54a,#7542e062 52%,#4c268b7c);box-shadow:inset 0 0 13px #fff9,0 0 8px #e7b6ff9c;pointer-events:none}
+#hotspots .hotspot .room-glass i{display:block;position:absolute;pointer-events:none}
+#hotspots .hotspot .glass-wall{inset:0 0 25%;background:repeating-linear-gradient(90deg,#fff2 0 3px,transparent 3px 25px),linear-gradient(150deg,#f8e1ff55,#a366d166)}
+#hotspots .hotspot .glass-window{top:9%;left:12%;width:37%;height:35%;border:2px solid #fff9e5;border-radius:5px;background:linear-gradient(180deg,#88d9ffb5,#78a8ff85 52%,#ffbdcbab 53%,#734dc78c);box-shadow:inset 0 0 5px #fff}
+#hotspots .hotspot .glass-desk{bottom:9%;right:10%;width:56%;height:29%;border:2px solid #fff4d5;border-radius:7px;background:linear-gradient(150deg,#ffddf0dd,#c359e8b5 55%,#6e34b8dc);box-shadow:inset 0 2px 6px #fff,0 4px 0 #47206b9e}
+#hotspots .hotspot .glass-lamp{top:7%;right:18%;width:10%;height:13%;border-radius:50%;background:#fff5c9;box-shadow:0 0 10px 5px #ffe0a0b3;animation:roomSpark 3s ease-in-out infinite}
+#hotspots .hotspot.tier-base .room-glass{opacity:.23;filter:saturate(.7)}
+#hotspots .hotspot.tier-silver .room-glass{opacity:.7;background:linear-gradient(145deg,#bce5ff70,#e4adf66e,#7048c17d)}
+#hotspots .hotspot.tier-gold .room-glass{opacity:.85;border-color:#ffe4a5;background:linear-gradient(145deg,#fff0b67d,#ff9dd17a,#7c32ad96);box-shadow:inset 0 0 18px #fff9,0 0 13px #ffe4a0a6}
+#hotspots .hotspot.tier-diamond .room-glass{opacity:.92;border-color:#a5faff;background:linear-gradient(140deg,#7cfaff90,#b77eff96,#5b2db5ad);box-shadow:inset 0 0 19px #fff,0 0 18px #a1eeff}
+#hotspots .hotspot.tier-legend .room-glass{opacity:1;border-color:#fff0a5;background:linear-gradient(130deg,#ffecaaab,#e98de8b0,#7638c0d1);box-shadow:inset 0 0 24px #fff,0 0 19px #ffdc89}
+#hotspots .hotspot.tier-legend .glass-lamp{box-shadow:0 0 14px 8px #fff4b5}
+#hotspots .hotspot.locked .room-glass{opacity:.12;filter:grayscale(1)}
+#hotspots .hotspot .locktag{position:relative;z-index:3;pointer-events:none}
+#hotspots .hotspot:active .room-glass{filter:brightness(1.3)}
+#hotspots .hotspot.tier-silver::after,#hotspots .hotspot.tier-gold::after,#hotspots .hotspot.tier-diamond::after{display:none!important}
+#hotspots .hotspot.tier-legend::after{display:none!important}
+@keyframes roomSpark{0%,100%{opacity:.45}50%{opacity:1}}
+#stage{background:linear-gradient(180deg,#a0e5ff,#f3b8e8 60%,#a778de)}
+#precinct{filter:saturate(1.18) contrast(1.04)}
+#modal .box .mh{max-width:100%;padding-right:54px}
+#modal .close{position:absolute;top:10px;right:12px;float:none;margin:0;z-index:30}
+#modal .box{position:relative}
+#modal .outfits{display:flex;flex-wrap:wrap;gap:12px;padding:10px 4px}
+#modal .osw{min-width:48px;min-height:48px;border-radius:13px}
+#modal .evo-roadmap-stages span{overflow-wrap:anywhere}
+@media(max-width:380px){#modal .box{padding-inline:12px}.hero-grid{gap:8px}#roomnav{gap:5px}#roomnav button{padding-inline:10px}}
+@media(prefers-reduced-motion:reduce){#hotspots .hotspot .glass-lamp{animation:none}}

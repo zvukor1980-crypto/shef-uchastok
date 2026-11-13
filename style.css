@@ -576,97 +576,19 @@ button:focus-visible{outline:3px solid #ffd85b;outline-offset:2px}
 .evo-open-btn{position:relative;z-index:8;display:block;width:100%;margin-top:7px;padding:9px 3px;border-radius:12px;background:linear-gradient(120deg,#fa65cf,#8636d4);border:1px solid #ffe1ff;color:#fff;font-size:12px;font-weight:900;box-shadow:0 3px 8px #18052e;touch-action:manipulation;cursor:pointer}
 
 
-/* v13: polished Israel lacquer redesign and non-overlapping touch targets */
-:root{--sky:#190d42;--navy:#281254;--navy2:#542a9a;--gold:#ffe08b;--line:#cfa1ff;--text:#372058}
-#game{background:radial-gradient(circle at 40% 5%,#b663f3,#32156d 58%,#150e38)}
-#topbar{background:linear-gradient(145deg,#211051,#7633ac 55%,#a94bb3)!important;color:#fff;border-bottom:2px solid #f8cc7d;box-shadow:0 4px 16px #18082f}
-.tb-title b{color:#ffe6a0;text-shadow:0 1px 7px #ffd1ff}.tb-title span{color:#f2d9ff}
-#questbar{border:1px solid #ffd4ff;background:linear-gradient(120deg,#5531a4,#c449b3)!important;color:#fff;box-shadow:0 3px 12px #1a064b}
-#questbar .qb-txt b,#questbar .qb-txt span{color:#fff}
-#questbar .qb-help{background:linear-gradient(135deg,#ffe9a2,#ffadce);color:#4b266d;border:1px solid #fff4c9;border-radius:12px;min-height:42px;font-weight:900}
-#roomnav{background:linear-gradient(95deg,#35186d,#8e3da8)!important;border-bottom:1px solid #f9c9f0}
-#roomnav button{color:#fff!important;background:linear-gradient(140deg,#7143b6,#ce5fb9)!important;border:1px solid #ffd6f6!important;box-shadow:inset 0 1px 2px #fff7,0 3px 0 #40206a!important;min-height:44px}
-#sheet{background:linear-gradient(160deg,#fff2fc,#e8ddff 45%,#d8f5ff)!important}
-#tabs{box-sizing:border-box;min-height:calc(var(--tab-h) + var(--safe-b));height:auto;align-items:stretch}
-#tabs .tab{min-width:0;min-height:48px;line-height:1.1;overflow:hidden;overflow-wrap:anywhere}
-#tabs .tab .ti{pointer-events:none}
-#modal .box{box-sizing:border-box;width:min(100%,520px);max-height:calc(100dvh - var(--safe-t) - 20px);overflow-y:auto;overscroll-behavior:contain;padding:22px 16px calc(28px + var(--safe-b));border-radius:24px 24px 0 0}
-#modal .close{position:sticky;float:right;top:0;right:0;z-index:20;margin:-8px -3px 2px 8px;flex:none}
-#modal .box .mh{padding-right:0;max-width:calc(100% - 54px);line-height:1.25}
-#modal button,.btn,#roomnav button,#tabs button,.evo-open-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-#modal button:disabled{opacity:.55;pointer-events:none}
-#modal .btn.wide{width:100%;white-space:normal;overflow-wrap:anywhere}
-#modal .room-actions{display:grid;gap:8px;min-width:0}
-#modal .staff-picker{max-width:100%;overflow:hidden}
-#modal .staff-picker button{max-width:100%;white-space:normal}
-.hero-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.hcard{min-width:0;overflow:hidden;isolation:isolate}
-.hcard .tag{top:35px;left:7px;max-width:calc(100% - 14px);font-size:9px;z-index:4}
-.hcard .lv{top:7px;right:6px;z-index:5}
-.evolution-card .evo-stage{top:6px;left:6px;right:60px;width:max-content;max-width:calc(100% - 70px);font-size:10px;padding:4px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.evolution-card .hb{position:relative;z-index:3;min-width:0;background:linear-gradient(180deg,#351468,#6a2791)!important;color:#fff}
-.evolution-card .hn,.evolution-card .hr,.evolution-card .stars{color:#fff}
-.evolution-card .hn{font-size:15px}.evolution-card .hr{font-size:11px;color:#f3d9ff}
-.evolution-card>img{display:block;width:100%;aspect-ratio:1;object-fit:cover;max-height:none;position:relative;z-index:1}
-.evolution-card .evo-open-btn{min-height:42px;position:relative;z-index:10}
-.gacha{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.gbtn{min-width:0;padding:10px 7px;background:linear-gradient(160deg,#fff7ff,#e9d9ff)!important;border:1px solid #d4a5ff}
-.gbtn .btn{width:100%;min-width:0;padding:9px 3px;font-size:11px;overflow-wrap:anywhere}
-#hotspots .hotspot{border-radius:6px;outline:none!important;box-shadow:none!important}
-#hotspots .hotspot::before,#hotspots .hotspot::after{pointer-events:none}
-#hotspots .hotspot.tier-silver::after,#hotspots .hotspot.tier-gold::after,#hotspots .hotspot.tier-diamond::after{inset:4px;border-radius:8px}
-#hotspots .hotspot.tier-base{background:transparent}
-.rlab{max-width:100px;padding:3px 5px;white-space:normal;overflow-wrap:anywhere;pointer-events:none;font-size:9px}
-.rlab .lv{margin-left:3px}
-#bubbles button{max-width:130px;white-space:normal;overflow-wrap:anywhere}
-.room-visual{--rv1:#7893b4;--rv2:#cad7e9;--rv3:#465777;position:relative;isolation:isolate;height:180px;margin:12px 0 15px;border:3px solid #d1c6e6;border-radius:18px;overflow:hidden;background:linear-gradient(160deg,var(--rv1),var(--rv2) 48%,var(--rv3));box-shadow:0 8px 20px #2c0c5260,inset 0 2px 12px #fff8}
-.room-visual.lux-gloss{--rv1:#a445b8;--rv2:#f9a4de;--rv3:#6531a3;border-color:#ffb5f4}
-.room-visual.lux-neon{--rv1:#422ab3;--rv2:#d75bfc;--rv3:#222d90;border-color:#aaf7ff}
-.room-visual.lux-gold{--rv1:#9c397c;--rv2:#ffdb91;--rv3:#8e4a95;border-color:#ffe49a}
-.room-visual.lux-legend{--rv1:#7828c7;--rv2:#ffe9ab;--rv3:#3b168f;border-color:#fff1aa;box-shadow:0 0 22px #ffc9ff,0 8px 24px #341153}
-.rv-sky{position:absolute;inset:8px 12px auto;display:flex;justify-content:space-between;align-items:center;color:#fff;z-index:3;text-shadow:0 1px 4px #24113b;font-size:11px;font-weight:900}
-.rv-sky b{font-size:24px;color:#fff2ad}
-.rv-windows{position:absolute;top:37px;left:9%;width:82%;height:68px;display:flex;gap:7px;z-index:1}
-.rv-windows i{flex:1;border:3px solid #f6d8ff;border-radius:9px 9px 2px 2px;background:linear-gradient(180deg,#7ee1ff 2%,#83b9ec 40%,#f7b6d8 41%,#b884d0 57%,#5249a0 58%,#8b7cba 75%,#416da7);box-shadow:inset 0 0 9px #fff8,0 0 8px #fff6}
-.rv-ceiling{position:absolute;top:24px;left:50%;transform:translateX(-50%);z-index:3;color:#ffe9b0;text-shadow:0 0 9px #fff;white-space:nowrap;animation:rvGlow 3s ease-in-out infinite}
-.rv-furniture{position:absolute;bottom:27px;left:12%;width:76%;height:68px;display:flex;align-items:flex-end;justify-content:space-around;z-index:4}
-.rv-furniture span{display:flex;align-items:center;justify-content:center;color:#fff7c9;text-shadow:0 2px 6px #301052;font-size:30px;width:29%;height:48px;background:linear-gradient(140deg,#ffffffa8,var(--rv3));border:2px solid #ffe7ff;border-radius:14px 14px 4px 4px;box-shadow:inset 0 4px 8px #fff9,0 7px 0 #291a6d55;animation:rvFloat 3.5s ease-in-out infinite}
-.rv-furniture span:nth-child(2){height:58px;animation-delay:.6s}.rv-furniture span:nth-child(3){animation-delay:1.2s}
-.rv-floor{position:absolute;bottom:0;left:0;width:100%;height:49px;background:repeating-linear-gradient(115deg,#ffffff33 0 14px,transparent 15px 38px),linear-gradient(0deg,var(--rv3),#ffffff77);transform:perspective(120px) rotateX(20deg);transform-origin:bottom}
-.rv-caption{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);z-index:5;max-width:95%;padding:4px 10px;border-radius:12px;background:#32165ecb;color:#fff7c7;font-size:12px;font-weight:900;white-space:nowrap}
-@keyframes rvFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-@keyframes rvGlow{0%,100%{opacity:.6}50%{opacity:1}}
-@media(max-width:365px){.hero-grid{gap:8px}.evolution-card .hn{font-size:13px}.evolution-card .evo-stage{font-size:9px}.rv-caption{font-size:10px}#tabs{gap:3px;padding-inline:3px}#tabs .tab{font-size:10px}}
-@media(prefers-reduced-motion:reduce){.rv-furniture span,.rv-ceiling{animation:none}}
 
-
-/* v14: every room gains an actual visible tier-dependent lacquer interior on the map */
-#hotspots .hotspot{isolation:isolate;overflow:hidden;cursor:pointer;outline:none!important}
-#hotspots .hotspot .room-glass{position:absolute;inset:3% 4%;z-index:1;display:block;overflow:hidden;border-radius:9px;border:2px solid #ffd1fa9e;background:linear-gradient(155deg,#f9c8f54a,#7542e062 52%,#4c268b7c);box-shadow:inset 0 0 13px #fff9,0 0 8px #e7b6ff9c;pointer-events:none}
-#hotspots .hotspot .room-glass i{display:block;position:absolute;pointer-events:none}
-#hotspots .hotspot .glass-wall{inset:0 0 25%;background:repeating-linear-gradient(90deg,#fff2 0 3px,transparent 3px 25px),linear-gradient(150deg,#f8e1ff55,#a366d166)}
-#hotspots .hotspot .glass-window{top:9%;left:12%;width:37%;height:35%;border:2px solid #fff9e5;border-radius:5px;background:linear-gradient(180deg,#88d9ffb5,#78a8ff85 52%,#ffbdcbab 53%,#734dc78c);box-shadow:inset 0 0 5px #fff}
-#hotspots .hotspot .glass-desk{bottom:9%;right:10%;width:56%;height:29%;border:2px solid #fff4d5;border-radius:7px;background:linear-gradient(150deg,#ffddf0dd,#c359e8b5 55%,#6e34b8dc);box-shadow:inset 0 2px 6px #fff,0 4px 0 #47206b9e}
-#hotspots .hotspot .glass-lamp{top:7%;right:18%;width:10%;height:13%;border-radius:50%;background:#fff5c9;box-shadow:0 0 10px 5px #ffe0a0b3;animation:roomSpark 3s ease-in-out infinite}
-#hotspots .hotspot.tier-base .room-glass{opacity:.23;filter:saturate(.7)}
-#hotspots .hotspot.tier-silver .room-glass{opacity:.7;background:linear-gradient(145deg,#bce5ff70,#e4adf66e,#7048c17d)}
-#hotspots .hotspot.tier-gold .room-glass{opacity:.85;border-color:#ffe4a5;background:linear-gradient(145deg,#fff0b67d,#ff9dd17a,#7c32ad96);box-shadow:inset 0 0 18px #fff9,0 0 13px #ffe4a0a6}
-#hotspots .hotspot.tier-diamond .room-glass{opacity:.92;border-color:#a5faff;background:linear-gradient(140deg,#7cfaff90,#b77eff96,#5b2db5ad);box-shadow:inset 0 0 19px #fff,0 0 18px #a1eeff}
-#hotspots .hotspot.tier-legend .room-glass{opacity:1;border-color:#fff0a5;background:linear-gradient(130deg,#ffecaaab,#e98de8b0,#7638c0d1);box-shadow:inset 0 0 24px #fff,0 0 19px #ffdc89}
-#hotspots .hotspot.tier-legend .glass-lamp{box-shadow:0 0 14px 8px #fff4b5}
-#hotspots .hotspot.locked .room-glass{opacity:.12;filter:grayscale(1)}
-#hotspots .hotspot .locktag{position:relative;z-index:3;pointer-events:none}
-#hotspots .hotspot:active .room-glass{filter:brightness(1.3)}
-#hotspots .hotspot.tier-silver::after,#hotspots .hotspot.tier-gold::after,#hotspots .hotspot.tier-diamond::after{display:none!important}
-#hotspots .hotspot.tier-legend::after{display:none!important}
-@keyframes roomSpark{0%,100%{opacity:.45}50%{opacity:1}}
-#stage{background:linear-gradient(180deg,#a0e5ff,#f3b8e8 60%,#a778de)}
-#precinct{filter:saturate(1.18) contrast(1.04)}
-#modal .box .mh{max-width:100%;padding-right:54px}
+/* v15: minimal, clean touch layout — no decorative frames over the map */
+#hotspots .hotspot{outline:none!important;box-shadow:none!important;border:none!important;background:transparent!important}
+#hotspots .hotspot::before,#hotspots .hotspot::after{display:none!important}
+#hotspots .hotspot.locked .locktag{pointer-events:none}
+#labels .rlab{pointer-events:none;max-width:100px;white-space:normal}
+#modal .box{position:relative;box-sizing:border-box;width:min(100%,520px);max-height:calc(100dvh - 18px);overflow-y:auto;padding:22px 14px calc(28px + env(safe-area-inset-bottom));border-radius:22px 22px 0 0}
 #modal .close{position:absolute;top:10px;right:12px;float:none;margin:0;z-index:30}
-#modal .box{position:relative}
-#modal .outfits{display:flex;flex-wrap:wrap;gap:12px;padding:10px 4px}
-#modal .osw{min-width:48px;min-height:48px;border-radius:13px}
-#modal .evo-roadmap-stages span{overflow-wrap:anywhere}
-@media(max-width:380px){#modal .box{padding-inline:12px}.hero-grid{gap:8px}#roomnav{gap:5px}#roomnav button{padding-inline:10px}}
-@media(prefers-reduced-motion:reduce){#hotspots .hotspot .glass-lamp{animation:none}}
+#modal .box .mh{max-width:100%;padding-right:50px;box-sizing:border-box}
+#tabs .tab{min-width:0;overflow:hidden}
+#modal button,.btn,#tabs button,#roomnav button{touch-action:manipulation}
+.evolution-card{border:0!important;box-shadow:0 3px 12px #230b4b35!important}
+.evolution-card .evo-stage{max-width:calc(100% - 70px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evolution-card .evo-open-btn{min-height:42px;position:relative;z-index:8}
+.room-visual{border:0!important;box-shadow:none!important}
+@media(max-width:380px){.hero-grid{gap:8px}#modal .box{padding-inline:12px}}

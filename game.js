@@ -963,10 +963,17 @@ function doGacha(mode){
   setTimeout(()=>{ ["gname","grar","ghow"].forEach(id=>{ const e=$("#"+id); if(e) e.style.opacity=1; }); AU.appear(); }, 900);
   if(TAB==="heroes") renderHeroes();
 }
+function heroTier(level){
+ if(level>=10)return {id:5,name:"Легенда",next:null,icon:"✦"};
+ if(level>=8)return {id:4,name:"Элита",next:10,icon:"✧"};
+ if(level>=6)return {id:3,name:"Профи",next:8,icon:"◆"};
+ if(level>=3)return {id:2,name:"Офицер",next:6,icon:"★"};
+ return {id:1,name:"Новичок",next:3,icon:"☆"};
+}
 function renderHeroes(){
   const owned=HERO_ORDER.filter(id=>S.heroes[id].owned).length;
-  $("#sheet").innerHTML=`<div class="sheet-h">Героини</div>
-    <div class="sheet-sub">В отделе ${owned} из ${HERO_ORDER.length}. Нажмите героиню и посадите её за стол — она сразу появится в комнате.</div>
+  $("#sheet").innerHTML=`<div class="sheet-h">✦ Эволюция героинь</div>
+    <div class="sheet-sub">В отделе ${owned} из ${HERO_ORDER.length}. Прокачивайте героинь и открывайте новые образы.</div>
     <div class="gacha">
       <div class="gbtn"><b>Обычный набор</b><span>случайная героиня</span><button class="btn" data-act="buy" data-arg="h1" data-testid="gacha-1">БЕСПЛАТНО</button></div>
       <div class="gbtn"><b>Набор из 10</b><span>выше шанс эпической</span><button class="btn" data-act="buy" data-arg="h10" data-testid="gacha-10">БЕСПЛАТНО</button></div>
@@ -981,12 +988,13 @@ function renderHeroes(){
         <div class="tag" style="background:#0008;color:${rar.color}">${rar.name}</div>
         <div class="hb"><div class="hn">${def.name}</div><div class="hr">${def.role}</div></div></div>`;
       const stars="★".repeat(h.stars||0)+"☆".repeat(5-(h.stars||0));
-      return `<div class="hcard" data-act="hero" data-arg="${id}" data-testid="hero-${id}">
+      const tier=heroTier(h.level);
+      return `<div class="hcard evolution-card tier-${tier.id}" data-act="hero" data-arg="${id}" data-testid="hero-${id}"><div class="evo-stage">${tier.icon} ${tier.name}</div>
         <img src="assets/heroes/${id}.webp" alt="${def.name}">
         <div class="tag" style="background:#0008;color:${rar.color}">${rar.name}</div>
         <div class="lv">ур. ${h.level}</div>
         <div class="hb"><div class="hn">${def.name}</div><div class="hr">${def.role}${h.assigned?" · "+ROOMS[h.assigned].name:""}</div>
-        <div class="stars">${stars}</div></div></div>`;
+        <div class="stars">${stars}</div><div class="evo-progress"><i style="width:${Math.min(100,h.level/10*100)}%"></i></div></div></div>`;
     }).join("")}</div>`;
 }
 function openHero(id){
@@ -1004,13 +1012,15 @@ function openHero(id){
     const on=h.assigned===r;
     return `<button class="btn ${on?"gold":""} sm" data-act="assign" data-arg="${id}|${r}" data-testid="assign-${id}-${r}">${on?"✓ ":""}Посадить: ${ROOMS[r].name}</button>`;
   }).join("");
+  const tier=heroTier(h.level);
   const outfit=h.outfit||"black";
   const swatches=OUTFIT_COLORS.map(c=>`<button class="osw ${outfit===c.id?"on":""}" data-c="${c.id}" data-act="outfit" data-arg="${id}|${c.id}" title="${c.name}" style="background:${c.css}"></button>`).join("");
   openModal(`<div class="mh">${def.name}</div>
     <div class="ms" style="color:${rar.color}">${rar.name} · ${def.role} · ур. ${h.level}</div>
-    <img class="openhero-spr" src="${heroSprite(id,outfit)}" alt="" width="120">
+    <div class="evo-showcase tier-${tier.id}"><img class="openhero-spr" src="${heroSprite(id,outfit)}" alt="${def.name}" width="120"><span class="evo-showcase-label">${tier.icon} ${tier.name}</span></div>
+    <div class="evo-roadmap"><b>Эволюция образа</b><div class="evo-roadmap-stages">${[1,3,6,8,10].map((lv,i)=>`<span class="${h.level>=lv?"reached":""}">${["Новичок","Офицер","Профи","Элита","Легенда"][i]}<small>ур. ${lv}</small></span>`).join("")}</div><div class="evo-next">${tier.next?"До следующего образа: "+(tier.next-h.level)+" ур.":"Высший образ открыт"}</div></div>
     <div class="ms">${def.blurb}</div>
-    <div class="sec">Цвет формы — бесплатно</div>
+    <div class="sec">Глянцевый гардероб · бесплатно</div><div class="ms">Выбранный цвет сохраняется. Автоматическая смена действует, пока цвет не выбран вручную.</div>
     <div class="outfits">${swatches}</div>
     <div class="statg"><div class="stat"><b>${h.level}</b><span>уровень</span></div><div class="stat"><b>${h.stars||0}/5</b><span>звёзды</span></div></div>
     <div class="sec">Посадить за стол</div>
@@ -1021,13 +1031,14 @@ function openHero(id){
 function setOutfit(arg){
   const [id,color]=arg.split("|");
   const h=S.heroes[id]; if(!h?.owned) return;
-  h.outfit=color; h.outfitPinned=true; AU.ok(); mark();
-  spawnStaff(); // refresh src
-  openHero(id);
+  if(!OUTFIT_COLORS.some(c=>c.id===color))return;
+  h.outfit=color; h.outfitPinned=true; h.autoOutfit=false; AU.ok(); mark();
+  spawnStaff(); renderActors(); openHero(id);
   toast(HEROES[id].name+": "+(OUTFIT_COLORS.find(c=>c.id===color)||{}).name+" форма");
 }
 function upHero(id){
   const h=S.heroes[id]; if(!h?.owned)return;
+  if(h.level>=50){toast("Максимальный уровень достигнут");return;}
   const cost=heroCost(h.level);
   if(S.cash<cost){toast("Не хватает денег — возьмите в магазине бесплатно");return;}
   S.cash-=cost; h.level=Math.min(50,h.level+1);
@@ -1037,7 +1048,7 @@ function upHero(id){
     if(h.outfit!==newColor){h.outfit=newColor;h.autoOutfit=true;}
   }
   addStat("heroActs",1);
-  AU.ok(); toast(HEROES[id].name+" — уровень "+h.level); mark(); hud(); spawnStaff(id); renderActors(); openHero(id);
+  AU.ok(); toast(HEROES[id].name+" — уровень "+h.level+(heroTier(h.level).id!==heroTier(h.level-1).id?" · НОВЫЙ ОБРАЗ!":"")); mark(); hud(); spawnStaff(id); renderActors(); openHero(id);
 }
 function assignHero(arg){
   const [id,room]=arg.split("|");

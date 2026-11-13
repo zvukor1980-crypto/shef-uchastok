@@ -994,7 +994,7 @@ function renderHeroes(){
         <div class="tag" style="background:#0008;color:${rar.color}">${rar.name}</div>
         <div class="lv">ур. ${h.level}</div>
         <div class="hb"><div class="hn">${def.name}</div><div class="hr">${def.role}${h.assigned?" · "+ROOMS[h.assigned].name:""}</div>
-        <div class="stars">${stars}</div><div class="evo-progress"><i style="width:${Math.min(100,h.level/10*100)}%"></i></div></div></div>`;
+        <div class="stars">${stars}</div><div class="evo-progress"><i style="width:${Math.min(100,h.level/10*100)}%"></i></div><button type="button" class="evo-open-btn" data-act="hero" data-arg="${id}" data-testid="open-hero-${id}">Открыть · Прокачать</button></div></div>`;
     }).join("")}</div>`;
 }
 function openHero(id){

@@ -546,3 +546,29 @@ button:focus-visible{outline:3px solid #ffd85b;outline-offset:2px}
 }
 .actor[data-hero].hero-rank-2::before{content:"✦✦";color:#ffb2e7}
 .actor[data-hero].hero-rank-3::before{content:"✦✦✦";color:#dfc3ff}
+
+
+/* v11: heroine evolution gallery and glossy wardrobe */
+.evolution-card{position:relative;isolation:isolate;overflow:hidden;border:2px solid #ad69f4!important;box-shadow:0 6px 22px #5708a566, inset 0 0 18px #fff4!important;background:linear-gradient(145deg,#4b1786,#8c2baf 48%,#190c51)!important;transition:transform .18s}
+.evolution-card:active{transform:scale(.97)}
+.evolution-card img{animation:evoBreathe 4s ease-in-out infinite;filter:drop-shadow(0 4px 10px #130024a8)}
+.evo-stage{position:absolute;top:6px;left:6px;z-index:4;background:linear-gradient(120deg,#4c178c,#dd54e4);color:white;padding:5px 9px;border-radius:15px;font-weight:900;font-size:11px;border:1px solid #ffd5ff;box-shadow:0 2px 8px #18062a}
+.evo-progress{height:6px;border-radius:10px;background:#ffffff42;margin-top:5px;overflow:hidden}
+.evo-progress i{display:block;height:100%;border-radius:10px;background:linear-gradient(90deg,#fd6bca,#ffe58c);box-shadow:0 0 8px #fff}
+.tier-2{border-color:#ff6c91!important}.tier-3{border-color:#b780ff!important}.tier-4{border-color:#e9eaff!important}.tier-5{border-color:#ffe17a!important;box-shadow:0 0 24px #ffd14c99,inset 0 0 20px #ffffff5e!important}
+.evo-showcase{position:relative;margin:10px auto 14px;width:min(100%,290px);height:210px;border-radius:22px;background:radial-gradient(ellipse at 50% 20%,#f5a8ff,#6736b4 52%,#180c49 100%);border:2px solid #f4d1ff;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:inset 0 0 32px #fff5,0 8px 22px #3a0e6b70}
+.evo-showcase:before{content:"✦  ✧  ✦";position:absolute;top:9px;right:15px;color:#fff5b6;letter-spacing:10px;animation:evoTwinkle 3s ease-in-out infinite}
+.evo-showcase img.openhero-spr{width:auto!important;max-width:90%!important;height:185px!important;max-height:185px!important;object-fit:contain;animation:evoBreathe 3.6s ease-in-out infinite;filter:drop-shadow(0 5px 12px #1d064e)}
+.evo-showcase-label{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);white-space:nowrap;background:linear-gradient(90deg,#6d2fb8,#da62dc);border:1px solid #ffdc96;color:white;border-radius:14px;padding:4px 15px;font-size:13px;font-weight:900}
+.evo-roadmap{background:linear-gradient(145deg,#2d165e,#5c2488);color:white;border:1px solid #e8adff;border-radius:15px;padding:10px 8px;margin:10px 0;text-align:center}
+.evo-roadmap>b{font-size:14px;color:#ffe9a5}
+.evo-roadmap-stages{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;margin:10px 0 6px}
+.evo-roadmap-stages span{min-width:0;padding:6px 1px;background:#ffffff15;border:1px solid #ffffff35;border-radius:8px;font-size:clamp(8px,2.5vw,11px);line-height:1.25;opacity:.65;overflow-wrap:anywhere}
+.evo-roadmap-stages span.reached{opacity:1;background:linear-gradient(140deg,#bd38c8,#e6a548);border-color:#ffeaa1;box-shadow:0 0 9px #f2bbf4}
+.evo-roadmap-stages small{display:block;font-size:10px;margin-top:3px}
+.evo-next{font-size:12px;color:#ffe6ab}
+.osw{min-width:34px;min-height:34px;border:2px solid #ffdcfc!important;box-shadow:inset 4px 4px 8px #fff9,0 3px 8px #3309538a!important}
+.osw.on{outline:3px solid #ffe477;outline-offset:2px}
+@keyframes evoBreathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.018)}}
+@keyframes evoTwinkle{0%,100%{opacity:.4}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.evolution-card img,.evo-showcase img.openhero-spr,.evo-showcase:before{animation:none}}

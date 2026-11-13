@@ -163,8 +163,8 @@ function defaultState(){
   }
   rooms.reception.hero=null;
   const heroes={};
-  for(const id of HERO_ORDER) heroes[id]={owned:false, level:1, stars:0, assigned:null, frags:0};
-  heroes.anna={owned:true, level:1, stars:0, assigned:null, frags:0};
+  for(const id of HERO_ORDER) heroes[id]={owned:false, level:1, stars:0, assigned:null, frags:0, outfit:"patrol"};
+  heroes.anna={owned:true, level:1, stars:0, assigned:null, frags:0, outfit:"patrol"};
   return {
     cash:2500, gas:40, ammo:25, elec:30, diamonds:150, sat:10,
     chiefLv:1, vip:0, fund:false, pass:false, secondQueue:false,
@@ -185,20 +185,20 @@ function defaultState(){
 
 /* Раскладка комнат: проценты от своего крыла (1 = верхнее, 2 = нижнее) */
 const LAYOUT = {
-  reception:  {wing:1, l:3,  t:8,  w:50, h:37, lx:27, ly:11, ax:22, ay:34, px:14, py:40},
-  detective:  {wing:1, l:51, t:7,  w:46, h:30, lx:74, ly:10, ax:64, ay:34},
-  interrog:   {wing:1, l:50, t:36, w:48, h:26, lx:82, ly:36, ax:62, ay:56},
-  cells:      {wing:1, l:3,  t:47, w:48, h:32, lx:24, ly:51, ax:24, ay:68},
-  garage:     {wing:1, l:48, t:60, w:50, h:36, lx:74, ly:63, ax:72, ay:82, ox:88, oy:96},
-  chief:      {wing:2, l:3,  t:6,  w:47, h:30, lx:26, ly:9,  ax:28, ay:28},
-  armory:     {wing:2, l:51, t:6,  w:46, h:30, lx:74, ly:9,  ax:72, ay:28},
-  electric:   {wing:2, l:3,  t:36, w:47, h:26, lx:26, ly:39, ax:24, ay:52},
-  suggest:    {wing:2, l:51, t:36, w:46, h:26, lx:74, ly:39, ax:74, ay:52},
-  gasstation: {wing:2, l:3,  t:62, w:47, h:34, lx:26, ly:65, ax:26, ay:82},
-  press:      {wing:2, l:51, t:62, w:46, h:34, lx:74, ly:65, ax:74, ay:82}
+  reception:  {wing:1, l:4,  t:22, w:44, h:22, lx:26, ly:32, ax:22, ay:40, px:14, py:38},
+  detective:  {wing:1, l:52, t:22, w:44, h:22, lx:74, ly:32, ax:74, ay:40},
+  interrog:   {wing:1, l:4,  t:48, w:44, h:20, lx:26, ly:56, ax:20, ay:64},
+  cells:      {wing:1, l:52, t:48, w:44, h:20, lx:74, ly:56, ax:76, ay:64},
+  garage:     {wing:1, l:8,  t:72, w:84, h:24, lx:50, ly:80, ax:38, ay:90, ox:90, oy:94},
+  chief:      {wing:2, l:4,  t:16, w:44, h:24, lx:26, ly:28, ax:24, ay:36},
+  armory:     {wing:2, l:52, t:16, w:44, h:24, lx:74, ly:28, ax:74, ay:36},
+  electric:   {wing:2, l:4,  t:44, w:44, h:22, lx:26, ly:54, ax:24, ay:62},
+  suggest:    {wing:2, l:52, t:44, w:44, h:22, lx:74, ly:54, ax:74, ay:62},
+  gasstation: {wing:2, l:4,  t:70, w:44, h:26, lx:26, ly:82, ax:24, ay:90},
+  press:      {wing:2, l:52, t:70, w:44, h:26, lx:74, ly:82, ax:74, ay:90}
 };
-// точки входа граждан (доля крыла 1)
-const ENTRANCE = {x:8, y:36};
+// вход посетительниц (доля крыла 1)
+const ENTRANCE = {x:6, y:42};
 
 const SAY = {
   citizen:["Помогите, пожалуйста!","Нужно заявление!","У меня пропала сумка!","Сосед шумит всю ночь!","Украли велосипед!","Что-то подозрительное у дома…"],
@@ -227,22 +227,96 @@ const OUTFIT_COLORS = [
   {id:"white",  name:"Белая",   css:"#e8e8f0"}
 ];
 
+const OUTFIT_STYLES = [
+  {id:"patrol", name:"Патрульная", minLevel:1, blurb:"Повседневная форма участка"},
+  {id:"parade", name:"Парадная", minLevel:3, blurb:"Золотой кант, галстук, медали"},
+  {id:"detective", name:"Детективная", minLevel:6, blurb:"Пиджак следовательницы без фуражки"},
+  {id:"tactical", name:"Тактическая", minLevel:8, blurb:"Жилет, ботинки, полевой комплект"},
+  {id:"elite", name:"Элитный лак", minLevel:10, blurb:"Сапфирово-золотой парадный блеск"}
+];
+const STYLE_LEGACY = {black:"patrol", red:"parade", purple:"detective", white:"elite"};
+function normalizeStyle(outfit){
+  const s = STYLE_LEGACY[outfit] || outfit || "patrol";
+  return OUTFIT_STYLES.some(x => x.id === s) ? s : "patrol";
+}
+function stylesUnlocked(level){
+  const lv = Math.max(1, level|0);
+  return OUTFIT_STYLES.filter(s => lv >= s.minLevel);
+}
+function bestStyle(level){
+  const u = stylesUnlocked(level);
+  return u[u.length - 1].id;
+}
 function heroSprite(id, outfit){
-  const c = outfit || "black";
-  if(c && c!=="black") return "assets/sprites/"+id+"-"+c+".webp";
-  return "assets/sprites/"+id+".webp";
+  return "assets/cast/" + id + "/" + normalizeStyle(outfit) + ".webp";
+}
+function roomDecorTier(level){
+  const lv = Math.max(1, level|0);
+  const tier = lv >= 10 ? 5 : lv >= 7 ? 4 : lv >= 4 ? 3 : lv >= 2 ? 2 : 1;
+  return {
+    level: lv,
+    tier,
+    marble: lv >= 2,
+    brass: lv >= 2,
+    gold: lv >= 4,
+    rug: lv >= 5,
+    glass: lv >= 6,
+    medallion: lv >= 5,
+    chandelier: lv >= 7,
+    columns: lv >= 10 ? 2 : lv >= 8 ? 1 : 0,
+    lacquer: lv >= 10,
+    plants: Math.min(4, Math.floor(lv / 2)),
+    monitors: 1 + Math.floor((lv - 1) / 3),
+    lamps: 1 + Math.floor(lv / 3),
+    gloss: Math.min(0.72, 0.16 + lv * 0.055),
+    name: lv >= 10 ? "Сапфировый лак" : lv >= 7 ? "Золотой люкс" : lv >= 4 ? "Мрамор и золото" : lv >= 2 ? "Лаковый ремонт" : "Иерусалимский камень"
+  };
+}
+const ROOM_SIGNS = {
+  reception: {en:"RECEPTION", he:"אולם קבלה"},
+  detective: {en:"DETECTIVE", he:"משרד בילוש"},
+  interrog: {en:"INTERROGATION", he:"חדר חקירות"},
+  cells: {en:"HOLDING CELLS", he:"תאי מעצר"},
+  garage: {en:"PATROL GARAGE", he:"מוסך סיור"},
+  chief: {en:"CHIEF", he:"לשכת המפקדת"},
+  armory: {en:"ARMORY", he:"נשקייה"},
+  electric: {en:"POWER", he:"חדר חשמל"},
+  suggest: {en:"IDEAS", he:"תיבת רעיונות"},
+  gasstation: {en:"FUEL", he:"תחנת דלק"},
+  press: {en:"PRESS", he:"דוברות"}
+};
+const CIV_WOMEN = ["yael","noa","miriam","liora"];
+const SUS_WOMEN = ["roni","shira"];
+const BOSS_WOMAN = "maya";
+const FACES = {
+  anna:"оливковая кожа, каштановый хвост, карие глаза",
+  marina:"светлая кожа, чёрный пучок, острые скулы",
+  olga:"золотистое каре, зелёно-голубые глаза",
+  darya:"веснушки, медные волны, зелёные глаза",
+  elena:"серебряная прядь, властный овал",
+  irina:"тёмная кожа, коробчатые косы",
+  victoria:"фарфор, прямые чёрные волосы, серые глаза",
+  katya:"медовый хвост, янтарные глаза",
+  sofia:"средиземноморская олива, тёмно-рыжие волны",
+  alina:"платиновое каре, ледяные голубые глаза",
+  natalya:"загар, тёмные кудри, тёплые глаза",
+  polina:"медные волны, веснушки, зелёные глаза"
+};
+for(const _id of HERO_ORDER){
+  HEROES[_id].gender = "f";
+  HEROES[_id].face = FACES[_id];
 }
 
 const CASES = [
-  {id:"bag",title:"Сумочка на Кармеле",story:"У жительницы Хайфы возле киоска пропала яркая сумочка.",civ:"civ-woman",suspect:"suspect-f",line:"Я только подняла её, чтобы найти хозяйку!"},
-  {id:"scooter",title:"Самокат на набережной",story:"На набережной Бат-Галим пропал электросамокат.",civ:"civ-woman",suspect:"suspect-f",line:"Я собиралась вернуть его у следующего кафе!"},
-  {id:"graf",title:"Граффити у участка",story:"Возле участка появилось огромное фиолетовое граффити.",civ:"civ-woman",suspect:"suspect-f",line:"Это искусство, я просто хотела добавить красок!"},
-  {id:"cat",title:"Кошка Мика пропала",story:"Кошка Мика не вернулась домой с прогулки по Хайфе.",civ:"civ-woman",suspect:"suspect-f",line:"Она сама забежала в подъезд, я помогла ей!"},
-  {id:"noise",title:"Караоке до утра",story:"Соседка устроила громкое караоке после полуночи.",civ:"civ-woman",suspect:"suspect-f",line:"Я не знала, что музыка слышна во всём доме!"},
-  {id:"wallet",title:"Кошелёк на рынке",story:"На рынке Вади-Ниснас пропал кошелёк между прилавками.",civ:"civ-woman",suspect:"suspect-f",line:"Я хотела отнести его в бюро находок!"},
-  {id:"cake",title:"Спор из-за торта",story:"Две покупательницы не поделили последний торт в пекарне.",civ:"civ-woman",suspect:"suspect-f",line:"Я стояла в очереди первой!"},
-  {id:"bike",title:"Велосипед «на минутку»",story:"Велосипед одолжили «на минутку», но он не вернулся.",civ:"civ-woman",suspect:"suspect-f",line:"Цепь слетела, я чинила его весь вечер."},
-  {id:"boss",title:"Большое дело",story:"В Хайфе появилась известная нарушительница. Особое дело!",civ:"civ-woman",suspect:"suspect-f",boss:true,line:"У вас против меня только догадки!"}
+  {id:"bag",title:"Сумочка на Кармеле",story:"У жительницы Хайфы возле киоска пропала яркая сумочка.",civ:"yael",suspect:"roni",line:"Я только подняла её, чтобы найти хозяйку!"},
+  {id:"scooter",title:"Самокат на набережной",story:"На набережной Бат-Галим пропал электросамокат.",civ:"yael",suspect:"roni",line:"Я собиралась вернуть его у следующего кафе!"},
+  {id:"graf",title:"Граффити у участка",story:"Возле участка появилось огромное фиолетовое граффити.",civ:"yael",suspect:"roni",line:"Это искусство, я просто хотела добавить красок!"},
+  {id:"cat",title:"Кошка Мика пропала",story:"Кошка Мика не вернулась домой с прогулки по Хайфе.",civ:"yael",suspect:"roni",line:"Она сама забежала в подъезд, я помогла ей!"},
+  {id:"noise",title:"Караоке до утра",story:"Соседка устроила громкое караоке после полуночи.",civ:"yael",suspect:"roni",line:"Я не знала, что музыка слышна во всём доме!"},
+  {id:"wallet",title:"Кошелёк на рынке",story:"На рынке Вади-Ниснас пропал кошелёк между прилавками.",civ:"yael",suspect:"roni",line:"Я хотела отнести его в бюро находок!"},
+  {id:"cake",title:"Спор из-за торта",story:"Две покупательницы не поделили последний торт в пекарне.",civ:"yael",suspect:"roni",line:"Я стояла в очереди первой!"},
+  {id:"bike",title:"Велосипед «на минутку»",story:"Велосипед одолжили «на минутку», но он не вернулся.",civ:"yael",suspect:"roni",line:"Цепь слетела, я чинила его весь вечер."},
+  {id:"boss",title:"Большое дело",story:"В Иерусалиме объявилась известная нарушительница. Особое дело!",civ:"liora",suspect:"maya",boss:true,line:"У вас против меня только догадки!"}
 ];
 const ACHIEVES = [
   {id:"a1", name:"Первое дело",        desc:"Закройте первый допрос",           key:"interrogs", need:1,  rew:{diamonds:40, cash:500}},
@@ -252,7 +326,7 @@ const ACHIEVES = [
   {id:"a5", name:"Уютный участок",     desc:"Улучшите комнаты 5 раз",           key:"upgrades",  need:5,  rew:{cash:3000, diamonds:50}},
   {id:"a6", name:"Щедрая касса",       desc:"Соберите 10 000 ₪",                key:"cashGot",   need:10000, rew:{diamonds:80}},
   {id:"a7", name:"Звезда отдела",      desc:"Наберите любую героиню",           key:"heroActs",  need:1,  rew:{diamonds:50}},
-  {id:"a8", name:"Особый улов",        desc:"Поймайте особо опасного",          key:"bosses",    need:1,  rew:{diamonds:120, cash:4000}}
+  {id:"a8", name:"Особый улов",        desc:"Поймайте особо опасную",          key:"bosses",    need:1,  rew:{diamonds:120, cash:4000}}
 ];
 
 const VIP_LINES = ["Инспекция с подарком!","Знаменитость заглянула в участок!","Тайный благотворитель."];

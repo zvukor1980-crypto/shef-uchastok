@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const dummy={classList:{add(){},remove(){},toggle(){},contains(){return true}},style:{},dataset:{},getBoundingClientRect(){return {left:0,top:0,width:1,bottom:0}},querySelector(){return dummy},querySelectorAll(){return []}};
+const dummy={className:"",textContent:"",classList:{add(){},remove(){},toggle(){},contains(){return true}},style:{},dataset:{},children:[],append(){},appendChild(){},prepend(){},getBoundingClientRect(){return {left:0,top:0,width:1,bottom:0}},querySelector(){return dummy},querySelectorAll(){return []}};
 let timers=[];
-const ctx=vm.createContext({console,Date,Math,JSON,Set,localStorage:{getItem(){return null},setItem(){}},document:{querySelector(){return dummy},querySelectorAll(){return []},body:dummy},window:{addEventListener(){}},navigator:{},setTimeout(fn){timers.push(fn);return timers.length},clearTimeout(){},requestAnimationFrame(){},innerWidth:390,innerHeight:844});
+const ctx=vm.createContext({console,Date,Math,JSON,Set,localStorage:{getItem(){return null},setItem(){}},document:{querySelector(){return dummy},querySelectorAll(){return []},body:dummy,createElement(){return dummy}},window:{addEventListener(){}},navigator:{},setTimeout(fn){timers.push(fn);return timers.length},clearTimeout(){},requestAnimationFrame(){},innerWidth:390,innerHeight:844});
 vm.runInContext(fs.readFileSync('data.js','utf8'),ctx);
 let code=fs.readFileSync('game.js','utf8').replace(/start\(\)\.catch\([^\n]+\);/,'');
 vm.runInContext(code,ctx);

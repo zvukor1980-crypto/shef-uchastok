@@ -8,9 +8,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Участок">
-<meta name="theme-color" content="#6d46b7">
+<meta name="theme-color" content="#12386f">
 <meta name="description" content="Сказочный полицейский участок Хайфы: героини, расследования, патруль, прокачка комнат и бесплатные улучшения.">
-<link rel="manifest" href="manifest.webmanifest?v=15">
+<link rel="manifest" href="manifest.webmanifest?v=17">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="favicon.png">
 <style>
@@ -23,14 +23,15 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
 .avatar{width:48px;height:48px;max-width:48px;max-height:48px;object-fit:cover;border-radius:50%;flex:none;min-width:0}
 .qb-ava,#questbar img,#nikatip img{width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover;border-radius:50%;flex:none;min-width:0}
 #coachava,#coach img{width:92px;max-width:92px;max-height:28vh;height:auto;object-fit:contain;flex:none;min-width:0}
-.wing>img{width:100%;height:auto;max-width:100%;max-height:none;object-fit:contain}
+.wing{width:100%;aspect-ratio:900/1600}
+#scene{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 .actor{max-width:18%;max-height:28vh}
 .actor img,#actors img{width:100%;max-width:100%;max-height:28vh;height:auto;object-fit:contain}
 .hcard img,.seat img,.reveal img,.flip-face img,.iq-card img,.assignee img{max-width:100%;max-height:42vh;object-fit:contain}
 #loading{position:absolute;inset:0;z-index:50}
 #cinema .unlock-room{width:70%;max-width:280px;max-height:40vh;object-fit:contain}
 </style>
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <div id="app">
@@ -47,7 +48,7 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
         <img class="avatar" id="avatar" src="assets/avatar.webp" alt="" width="48" height="48">
         <div class="tb-title">
           <b>ШЕФ ПОЛИЦИИ</b>
-          <span>Хайфа · ур. <i id="chiefLv">1</i></span>
+          <span>Иерусалим · ур. <i id="chiefLv">1</i></span>
         </div>
         <button class="icon-btn" id="btnMute" data-act="mute" aria-label="Звук">🔊</button>
       </div>
@@ -81,12 +82,9 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
     <div id="stage">
       <div id="precinct">
         <div id="campus">
-          <div class="wing" id="wing1">
-            <img src="assets/rooms/wing-start.webp" alt="Участок" width="900" height="1600" draggable="false">
-          </div>
-          <div class="wing" id="wing2">
-            <img src="assets/rooms/wing-more.webp" alt="Новые комнаты" width="900" height="1600" draggable="false">
-          </div>
+          <canvas id="scene" aria-label="Полицейский участок"></canvas>
+          <div class="wing" id="wing1"></div>
+          <div class="wing" id="wing2"></div>
           <div id="daytint"></div>
           <div id="hotspots"></div>
           <div id="actors"></div>
@@ -132,7 +130,8 @@ img{display:block;max-width:100%;max-height:100%;height:auto;object-fit:contain}
   <div id="modal" class="hidden"></div>
   <div id="toasts"></div>
 </div>
-<script src="data.js?v=15"></script>
-<script src="game.js?v=15"></script>
+<script src="data.js?v=17"></script>
+<script src="render.js?v=17"></script>
+<script src="game.js?v=17"></script>
 </body>
 </html>

@@ -572,3 +572,5 @@ button:focus-visible{outline:3px solid #ffd85b;outline-offset:2px}
 @keyframes evoBreathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.018)}}
 @keyframes evoTwinkle{0%,100%{opacity:.4}50%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.evolution-card img,.evo-showcase img.openhero-spr,.evo-showcase:before{animation:none}}
+
+.evo-open-btn{position:relative;z-index:8;display:block;width:100%;margin-top:7px;padding:9px 3px;border-radius:12px;background:linear-gradient(120deg,#fa65cf,#8636d4);border:1px solid #ffe1ff;color:#fff;font-size:12px;font-weight:900;box-shadow:0 3px 8px #18052e;touch-action:manipulation;cursor:pointer}

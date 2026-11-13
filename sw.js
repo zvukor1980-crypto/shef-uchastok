@@ -1,6 +1,6 @@
-/* v15: app-scoped caches, bounded network waits, offline shell fallback. */
-const CACHE='policeuch-v15';
-const SHELL=['./','./index.html','./style.css?v=15','./data.js?v=15','./game.js?v=15','./manifest.webmanifest?v=15'];
+/* v18: living lacquer precinct, outfit ranks, women-only cast. */
+const CACHE='policeuch-v18';
+const SHELL=['./','./index.html','./style.css?v=18','./data.js?v=18','./render.js?v=18','./game.js?v=18','./manifest.webmanifest?v=18'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   await cache.addAll(SHELL);

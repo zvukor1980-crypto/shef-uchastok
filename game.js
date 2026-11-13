@@ -82,7 +82,7 @@ function load(){
       for(const id of ROOM_ORDER) if(!S.rooms[id]) S.rooms[id]=defaultState().rooms[id];
       for(const id of HERO_ORDER){
         if(!S.heroes[id]) S.heroes[id]=defaultState().heroes[id];
-        if(!S.heroes[id].outfit) S.heroes[id].outfit="black";
+        S.heroes[id].outfit=normalizeStyle(S.heroes[id].outfit);
       }
       if(S.tasks.day!==todayKey()) S.tasks={day:todayKey(),prog:{},claimed:{}};
       S.actors=[]; S.bubbles=S.bubbles||[];
@@ -280,8 +280,20 @@ function addActor(o){
 function say(a,text,dur){ a.say=text; a.sayT=dur||2.8; }
 function walkTo(a,x,y,spd){ a.tx=x; a.ty=y; a.spd=spd||18; a.walk=true; }
 
+function ensureAmbience(){
+  if(!S.actors.some(a=>a.kind==="dog")){
+    addActor({kind:"dog", spr:"rika", wing:1, x:70, y:66, tx:70, ty:66, box:[58,60,90,70], life:1, phase:1});
+  }
+  if(!S.actors.some(a=>a.spr==="liana")){
+    addActor({kind:"ambient", spr:"liana", wing:1, x:16, y:34, box:[8,26,40,42], life:1, phase:2, job:"patrol"});
+  }
+  if(!S.actors.some(a=>a.spr==="tamar")){
+    addActor({kind:"ambient", spr:"tamar", wing:1, x:78, y:34, box:[56,26,92,42], life:1, phase:3.4, job:"files"});
+  }
+}
 function spawnStaff(popHid){
   S.actors=S.actors.filter(a=>a.kind!=="hero");
+  ensureAmbience();
   // drop leftover hero DOM so pop-in can replay
   $$("#actors [data-hero]").forEach(el=>el.remove());
   for(const id of ROOM_ORDER){
@@ -297,7 +309,9 @@ function spawnStaff(popHid){
 function makeCase(forceBoss){
   const pool = forceBoss? CASES.filter(c=>c.boss) : CASES.filter(c=>!c.boss);
   const t=pick(pool);
-  return {cid:"c"+(++_aid), type:t.id, title:t.title, story:t.story, line:t.line, civ:t.civ, suspect:t.suspect, boss:!!t.boss, stage:"arrive"};
+  const suspect=t.boss?BOSS_WOMAN:pick(SUS_WOMEN);
+  const civ=pick(CIV_WOMEN);
+  return {cid:"c"+(++_aid), type:t.id, title:t.title, story:t.story, line:t.line, civ, suspect, boss:!!t.boss, stage:"arrive"};
 }
 
 function spawnCitizen(forced){
@@ -308,7 +322,7 @@ function spawnCitizen(forced){
   rec.in++;
   const cs=makeCase(!!forced?.boss || ((S.stats.interrogs||0)>0 && (S.stats.interrogs+1)%5===0));
   S.docket.push(cs);
-  const spr="civ-woman";
+  const spr=cs.civ||pick(CIV_WOMEN);
   const q=S.actors.filter(x=>x.kind==="citizen"&&x.state!=="leave").length;
   const wx=LAYOUT.reception.px + Math.min(q,2)*7;
   const wy=LAYOUT.reception.py + Math.min(q,2)*3;
@@ -321,7 +335,7 @@ function spawnCitizen(forced){
 function spawnVip(){
   if(S.actors.some(a=>a.kind==="vip")) return;
   const L=LAYOUT.reception;
-  const a=addActor({kind:"vip", spr:"civ-woman", wing:1, x:ENTRANCE.x, y:ENTRANCE.y, life:1, state:"vip"});
+  const a=addActor({kind:"vip", spr:"liora", wing:1, x:ENTRANCE.x, y:ENTRANCE.y, life:1, state:"vip"});
   walkTo(a, L.px-6, L.py-4, 14);
   say(a, "Подарок шефу!", 4);
   toast("VIP-гость в приёмной! Нажмите на гостя.");
@@ -383,10 +397,9 @@ function deliver(room,kind,amt){
     S.rooms[d.next].in+=amt;
     const A=LAYOUT[room], B=LAYOUT[d.next];
     const typ=kind==="suspects"?"suspect":kind==="inmates"?"inmate":"citizen";
-    let spr="civ-woman";
     const cs=S.docket.find(c=>c.stage==="warrant"||c.stage==="suspect"||c.stage==="docs"||c.stage==="detective");
-    if(typ==="suspect") spr="suspect-f";
-    else if(typ==="inmate") spr="suspect-f";
+    let spr=(cs&&cs.civ)||pick(CIV_WOMEN);
+    if(typ==="suspect"||typ==="inmate") spr=(cs&&cs.suspect)||pick(SUS_WOMEN);
     const a=addActor({kind:typ, spr, wing:A.wing, x:A.ax, y:A.ay, life:1, state:"xfer"});
     if(typ==="suspect" && cs){ cs.stage="interrog"; say(a, cs.line||pick(SAY.suspect), 2.6); }
     if(A.wing===B.wing){ walkTo(a,B.ax,B.ay,20); }
@@ -433,8 +446,9 @@ function tick(dt){
   const cyc=(S._day/80)%1;
   const tint=$("#daytint");
   if(tint){
-    if(cyc>0.45 && cyc<0.58){ tint.style.background="#e8a050"; tint.style.opacity=".28"; } // dusk
-    else if(cyc>=0.58 && cyc<0.82){ tint.style.background="#1a2a68"; tint.style.opacity=".32"; } // night
+    if(window.Scene){ tint.style.opacity="0"; }
+    else if(cyc>0.45 && cyc<0.58){ tint.style.background="#e8a050"; tint.style.opacity=".28"; }
+    else if(cyc>=0.58 && cyc<0.82){ tint.style.background="#1a2a68"; tint.style.opacity=".32"; }
     else if(cyc>=0.82 && cyc<0.9){ tint.style.background="#f0b070"; tint.style.opacity=".22"; }
     else { tint.style.opacity="0"; }
   }
@@ -524,10 +538,11 @@ function tick(dt){
   S.actors=S.actors.filter(a=>a.life!==0);
 
   for(const a of S.actors){
-    if(a.kind==="hero" && a.roam && !a.walk && Math.random()<0.002){
+    if((a.kind==="ambient"||a.kind==="dog") && a.box && !a.walk && Math.random()<0.004){
+      walkTo(a, a.box[0]+Math.random()*(a.box[2]-a.box[0]), a.box[1]+Math.random()*(a.box[3]-a.box[1]), a.kind==="dog"?7:10);
+    }else if(a.kind==="hero" && a.roam && !a.walk && Math.random()<0.003){
       const L=LAYOUT[a.roam];
-      // stay close to the desk — don't wander off
-      walkTo(a, L.ax+(Math.random()*6-3), L.ay+(Math.random()*4-1), 8);
+      walkTo(a, L.ax+(Math.random()*8-4), L.ay+(Math.random()*5-2), 8);
     }
     if(a.kind==="hero"){ if(a.quiet>0) a.quiet-=dt; else if(!a.say && Math.random()<0.0007) say(a, pick(SAY.staff), 2.2); }
     if(a.kind==="inmate" && !a.say && Math.random()<0.0007) say(a, pick(SAY.inmate), 2.2);
@@ -538,10 +553,11 @@ function tick(dt){
 function syncInmates(){
   const need=S.rooms.cells.in|0;
   let have=S.actors.filter(a=>a.kind==="inmate"&&a.state==="sit").length;
-  const slots=[{x:20,y:72},{x:32,y:70},{x:16,y:78},{x:28,y:76}];
+  const slots=[{x:60,y:62},{x:72,y:63},{x:84,y:62},{x:68,y:66}];
   while(have<need && have<slots.length){
     const s=slots[have];
-    addActor({kind:"inmate", spr:"suspect-f", wing:1, x:s.x, y:s.y, tx:s.x, ty:s.y, walk:false, life:1, state:"sit"});
+    const looks=["roni","shira","maya","miriam"];
+    addActor({kind:"inmate", spr:looks[have%looks.length], wing:1, x:s.x, y:s.y, tx:s.x, ty:s.y, walk:false, life:1, state:"sit"});
     have++;
   }
   if(have>need){
@@ -571,7 +587,7 @@ function renderIQ(){
   const def=HEROES[IQ.hid]||HEROES.anna;
   const cs=IQ.cs;
   const spr=heroSprite(def.id, S.heroes[def.id]?.outfit);
-  const sus="suspect-f";
+  const sus=cs.suspect||"roni";
   const line = IQ.round===1 ? (cs.line||pick(SAY.iqOpen)) : (IQ.lastLine||pick(SAY.iqOpen));
   $("#iq").classList.remove("hidden");
   $("#iq").style.display="";
@@ -579,12 +595,12 @@ function renderIQ(){
     <button type="button" class="close" data-act="iqclose" data-testid="iq-close" aria-label="Закрыть">✕</button>
     <div class="iq-bg"><img src="assets/rooms/interrog-bg.webp" alt=""></div>
     <div class="iq-ui">
-      ${cs.boss?'<div class="iq-boss">⚠ ОСОБО ОПАСНЫЙ</div>':''}
+      ${cs.boss?'<div class="iq-boss">⚠ ОСОБО ОПАСНАЯ</div>':''}
       <div class="iq-round">Раунд ${IQ.round} из ${IQ.total} · ${cs.title}</div>
       <div class="iq-meter"><div class="mlab"><span>Давление</span><span>Доверие</span></div><div class="mbar"><i style="width:${IQ.meter}%"></i></div></div>
       <div class="iq-pair">
         <div class="iq-card"><img src="${spr}" alt="${def.name}"><b>${def.name}</b></div>
-        <div class="iq-card"><img src="assets/sprites/${sus}.webp" alt=""><b>${cs.boss?"Особо опасный":"Подозреваемая"}</b></div>
+        <div class="iq-card"><img src="assets/cast/suspect/${sus}.webp" alt="" onerror="this.onerror=null;this.src='assets/cast/suspect/roni.webp'"><b>${cs.boss?"Особо опасная":"Подозреваемая"}</b></div>
       </div>
       <div class="iq-line" id="iqline">${line}</div>
       <div class="iq-clue">${cs.story}</div>
@@ -645,7 +661,7 @@ function finishIQ(){
     if(IQ.cs) IQ.cs.stage="done";
   } else {
     S.combo=0;
-    toast("Подозреваемая не раскололся — дело слабое.");
+    toast("Подозреваемая не раскололась — дело слабое.");
   }
   AU.ok(); shake(); mark(); hud();
   const starStr="★★★".slice(0,stars)+"☆☆☆".slice(stars);
@@ -663,7 +679,7 @@ function finishIQ(){
 }
 function spawnTransferInmate(cs){
   const A=LAYOUT.interrog, B=LAYOUT.cells;
-  const a=addActor({kind:"inmate",spr:"suspect-f",wing:1,x:A.ax,y:A.ay,life:1,state:"xfer"});
+  const a=addActor({kind:"inmate",spr:(cs&&cs.suspect)||pick(SUS_WOMEN),wing:1,x:A.ax,y:A.ay,life:1,state:"xfer"});
   walkTo(a,B.ax,B.ay,18);
   say(a, pick(SAY.inmate), 2);
 }
@@ -679,7 +695,7 @@ function upgradeRoom(id){
   const r=S.rooms[id], cost=roomCost(id,r.level);
   if(S.cash<cost){toast("Не хватает денег — загляните в магазин");return;}
   S.cash-=cost; r.level++; addStat("upgrades",1);
-  AU.ok(); confetti(); toast(ROOMS[id].name+" — уровень "+r.level);
+  AU.ok(); confetti(); toast(ROOMS[id].name+" — "+roomDecorTier(r.level).name+" · ур. "+r.level);
   mark(); hud(); renderHotspots(); renderLabels(); renderRoomModal(id);
   guideEvent("upgrade");
 }
@@ -814,6 +830,31 @@ function upsertActor(a, parent, extraClass){
 }
 
 function renderActors(){
+  if(window.Scene){
+    const el=$("#actors");
+    if(!el) return;
+    const want=new Set();
+    for(const a of S.actors){
+      if(a.kind!=="vip"||a.life===0) continue;
+      want.add(a.id);
+      let node=el.querySelector('[data-id="'+a.id+'"]');
+      if(!node){
+        node=document.createElement("button");
+        node.dataset.id=a.id;
+        node.dataset.act="vip";
+        node.className="actor vip";
+        node.type="button";
+        node.setAttribute("aria-label","VIP-гость");
+        el.appendChild(node);
+      }
+      const st=posStyle(a.wing||1, a.x, a.y);
+      node.style.left=st.left; node.style.top=st.top;
+    }
+    for(const node of [...el.children]){
+      if(!want.has(node.dataset.id)) node.remove();
+    }
+    return;
+  }
   const el=$("#actors");
   const keep=new Set(["car"]);
   // car
@@ -886,8 +927,7 @@ function setTab(t){
 }
 function renderShop(){
   const outfitBlock=`<div class="sec">Форма героинь</div>
-    <div class="ms">Цвета формы бесплатно. Откройте карточку героини и выберите чёрный, красный, фиолетовый или белый.</div>
-    <div class="outfits" style="justify-content:center;margin:8px 0 16px">${OUTFIT_COLORS.map(c=>`<button class="osw" data-c="${c.id}" title="${c.name}" style="background:${c.css}" data-act="tab" data-arg="heroes"></button>`).join("")}</div>`;
+    <div class="ms">Стиль меняется с уровнем: патрульная, парадная, детективная, тактическая и элитный лак. Открытый стиль можно выбрать в карточке.</div>`;
   $("#sheet").innerHTML=`<div class="sheet-h">Магазин</div><div class="sheet-sub">Всё бесплатно, без таймеров и ограничений. Берите сколько нужно.</div>`+
     outfitBlock+
     SHOP.map(sec=>`<div class="sec">${sec.cat}</div>`+sec.items.map(it=>`
@@ -937,7 +977,7 @@ function rollOne(mode){
 }
 function giveHero(id){
   const h=S.heroes[id]; addStat("heroActs",1);
-  if(!h.owned){ h.owned=true; h.level=1; h.stars=0; h.outfit=h.outfit||"black"; return {id,neu:true}; }
+  if(!h.owned){ h.owned=true; h.level=1; h.stars=0; h.outfit="patrol"; return {id,neu:true}; }
   h.frags=(h.frags||0)+10;
   if(h.frags>=10 && h.stars<5){h.frags-=10;h.stars++; return {id,neu:false,star:true};}
   if(h.stars>=5){h.level=Math.min(50,h.level+3); return {id,neu:false,lvl:true};}
@@ -953,7 +993,7 @@ function doGacha(mode){
   openModal(`<div class="reveal"><div class="mh">Набор героинь</div>
     <div class="flip-wrap"><div class="flip-card" id="gflip">
       <div class="flip-face back">★</div>
-      <div class="flip-face front"><img src="assets/heroes/${def.id}.webp" alt="${def.name}"></div>
+      <div class="flip-face front"><img src="${heroSprite(def.id, S.heroes[def.id]?.outfit||"patrol")}" alt="${def.name}"></div>
     </div></div>
     <div class="rn" id="gname" style="opacity:0">${def.name}</div>
     <div class="rr" id="grar" style="opacity:0;color:${rar.color}">${rar.name} · ${def.role}</div>
@@ -983,14 +1023,14 @@ function renderHeroes(){
     <div class="hero-grid">${HERO_ORDER.map(id=>{
       const def=HEROES[id], h=S.heroes[id], rar=RAR[def.rarity];
       if(!h.owned) return `<div class="hcard locked" data-act="hero" data-arg="${id}">
-        <img src="assets/heroes/${id}.webp" alt="">
+        <img src="${heroSprite(id,"patrol")}" alt="" onerror="this.onerror=null;this.src='assets/heroes/${id}.webp'">
         <div class="lock">🔒</div>
         <div class="tag" style="background:#0008;color:${rar.color}">${rar.name}</div>
         <div class="hb"><div class="hn">${def.name}</div><div class="hr">${def.role}</div></div></div>`;
       const stars="★".repeat(h.stars||0)+"☆".repeat(5-(h.stars||0));
       const tier=heroTier(h.level);
       return `<div class="hcard evolution-card tier-${tier.id}" data-act="hero" data-arg="${id}" data-testid="hero-${id}"><div class="evo-stage">${tier.icon} ${tier.name}</div>
-        <img src="assets/heroes/${id}.webp" alt="${def.name}">
+        <img src="${heroSprite(id,h.outfit)}" alt="${def.name}" onerror="this.onerror=null;this.src='assets/cast/${id}/patrol.webp'">
         <div class="tag" style="background:#0008;color:${rar.color}">${rar.name}</div>
         <div class="lv">ур. ${h.level}</div>
         <div class="hb"><div class="hn">${def.name}</div><div class="hr">${def.role}${h.assigned?" · "+ROOMS[h.assigned].name:""}</div>
@@ -1001,7 +1041,7 @@ function openHero(id){
   const def=HEROES[id], h=S.heroes[id], rar=RAR[def.rarity];
   if(!h.owned){
     openModal(`<div class="mh">${def.name}</div><div class="ms" style="color:${rar.color}">${rar.name} · ${def.role}</div>
-      <img class="openhero-spr" src="assets/heroes/${id}.webp" alt="" width="140" height="140" style="width:140px;height:140px;max-height:36vh;border-radius:16px;margin:8px auto;object-fit:cover">
+      <img class="openhero-spr" src="${heroSprite(id,"patrol")}" alt="" width="140" height="140" style="width:140px;height:220px;max-height:36vh;border-radius:16px;margin:8px auto;object-fit:cover;object-position:center top">
       <div class="ms">${def.blurb}</div>
       <button class="btn wide" data-act="buy" data-arg="h1">Набрать бесплатно</button>
       <button class="btn grey wide" data-act="close">Закрыть</button>`);
@@ -1013,15 +1053,22 @@ function openHero(id){
     return `<button class="btn ${on?"gold":""} sm" data-act="assign" data-arg="${id}|${r}" data-testid="assign-${id}-${r}">${on?"✓ ":""}Посадить: ${ROOMS[r].name}</button>`;
   }).join("");
   const tier=heroTier(h.level);
-  const outfit=h.outfit||"black";
-  const swatches=OUTFIT_COLORS.map(c=>`<button class="osw ${outfit===c.id?"on":""}" data-c="${c.id}" data-act="outfit" data-arg="${id}|${c.id}" title="${c.name}" style="background:${c.css}"></button>`).join("");
+  const outfit=normalizeStyle(h.outfit);
+  const styles=OUTFIT_STYLES.map(s=>{
+    const locked=h.level<s.minLevel;
+    const on=outfit===s.id;
+    return `<button type="button" class="style-card ${on?"on":""} ${locked?"locked":""}" data-act="outfit" data-arg="${id}|${s.id}" data-testid="style-${id}-${s.id}" ${locked?"disabled":""}>
+      <img src="${heroSprite(id,s.id)}" alt="" onerror="this.onerror=null;this.src='assets/cast/${id}/patrol.webp'">
+      <b>${s.name}</b><small>${locked?"с ур. "+s.minLevel:s.blurb}</small>
+    </button>`;
+  }).join("");
   openModal(`<div class="mh">${def.name}</div>
-    <div class="ms" style="color:${rar.color}">${rar.name} · ${def.role} · ур. ${h.level}</div>
-    <div class="evo-showcase tier-${tier.id}"><img class="openhero-spr" src="${heroSprite(id,outfit)}" alt="${def.name}" width="120"><span class="evo-showcase-label">${tier.icon} ${tier.name}</span></div>
-    <div class="evo-roadmap"><b>Эволюция образа</b><div class="evo-roadmap-stages">${[1,3,6,8,10].map((lv,i)=>`<span class="${h.level>=lv?"reached":""}">${["Новичок","Офицер","Профи","Элита","Легенда"][i]}<small>ур. ${lv}</small></span>`).join("")}</div><div class="evo-next">${tier.next?"До следующего образа: "+(tier.next-h.level)+" ур.":"Высший образ открыт"}</div></div>
+    <div class="ms" style="color:${rar.color}">${rar.name} · ${def.role} · ур. ${h.level} · ${def.face||""}</div>
+    <div class="evo-showcase tier-${tier.id}"><img class="openhero-spr" src="${heroSprite(id,outfit)}" alt="${def.name}" width="120" onerror="this.onerror=null;this.src='assets/cast/${id}/patrol.webp'"><span class="evo-showcase-label">${tier.icon} ${OUTFIT_STYLES.find(s=>s.id===outfit).name}</span></div>
+    <div class="evo-roadmap"><b>Форма растёт вместе с ней</b><div class="evo-roadmap-stages">${OUTFIT_STYLES.map(s=>`<span class="${h.level>=s.minLevel?"reached":""}">${s.name}<small>ур. ${s.minLevel}</small></span>`).join("")}</div><div class="evo-next">${tier.next?"До следующего стиля: "+(tier.next-h.level)+" ур.":"Элитный лак открыт — можно выбрать любой стиль"}</div></div>
     <div class="ms">${def.blurb}</div>
-    <div class="sec">Глянцевый гардероб · бесплатно</div><div class="ms">Выбранный цвет сохраняется. Автоматическая смена действует, пока цвет не выбран вручную.</div>
-    <div class="outfits">${swatches}</div>
+    <div class="sec">Гардероб</div><div class="ms">Новые стили открываются с уровнем. Выбранный вручную стиль сохраняется.</div>
+    <div class="style-grid">${styles}</div>
     <div class="statg"><div class="stat"><b>${h.level}</b><span>уровень</span></div><div class="stat"><b>${h.stars||0}/5</b><span>звёзды</span></div></div>
     <div class="sec">Посадить за стол</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${rooms}</div>
@@ -1029,12 +1076,14 @@ function openHero(id){
     <button class="btn grey wide" data-act="close">Закрыть</button>`);
 }
 function setOutfit(arg){
-  const [id,color]=arg.split("|");
+  const [id,style]=arg.split("|");
   const h=S.heroes[id]; if(!h?.owned) return;
-  if(!OUTFIT_COLORS.some(c=>c.id===color))return;
-  h.outfit=color; h.outfitPinned=true; h.autoOutfit=false; AU.ok(); mark();
+  const def=OUTFIT_STYLES.find(s=>s.id===style);
+  if(!def) return;
+  if(h.level<def.minLevel){ toast(def.name+" откроется на уровне "+def.minLevel); return; }
+  h.outfit=style; h.outfitPinned=true; h.autoOutfit=false; AU.ok(); mark();
   spawnStaff(); renderActors(); openHero(id);
-  toast(HEROES[id].name+": "+(OUTFIT_COLORS.find(c=>c.id===color)||{}).name+" форма");
+  toast(HEROES[id].name+": "+def.name);
 }
 function upHero(id){
   const h=S.heroes[id]; if(!h?.owned)return;
@@ -1042,13 +1091,14 @@ function upHero(id){
   const cost=heroCost(h.level);
   if(S.cash<cost){toast("Не хватает денег — возьмите в магазине бесплатно");return;}
   S.cash-=cost; h.level=Math.min(50,h.level+1);
-  // Existing outfit artwork evolves automatically unless the player picked a color.
-  if(!h.outfitPinned && (!h.outfit || h.outfit==="black" || h.autoOutfit)){
-    const newColor=h.level>=10?"white":h.level>=6?"purple":h.level>=3?"red":"black";
-    if(h.outfit!==newColor){h.outfit=newColor;h.autoOutfit=true;}
+  let styled=false;
+  if(!h.outfitPinned){
+    const ns=bestStyle(h.level);
+    if(normalizeStyle(h.outfit)!==ns){ h.outfit=ns; h.autoOutfit=true; styled=true; }
   }
   addStat("heroActs",1);
-  AU.ok(); toast(HEROES[id].name+" — уровень "+h.level+(heroTier(h.level).id!==heroTier(h.level-1).id?" · НОВЫЙ ОБРАЗ!":"")); mark(); hud(); spawnStaff(id); renderActors(); openHero(id);
+  const styleName=OUTFIT_STYLES.find(s=>s.id===normalizeStyle(h.outfit)).name;
+  AU.ok(); toast(HEROES[id].name+" — уровень "+h.level+(styled?" · "+styleName:"")); mark(); hud(); spawnStaff(id); renderActors(); openHero(id);
 }
 function assignHero(arg){
   const [id,room]=arg.split("|");
@@ -1143,7 +1193,7 @@ function seatPicker(roomId){
     <div class="seat-grid">`+owned.map(id=>{
       const def=HEROES[id], h=S.heroes[id], on=S.rooms[roomId].hero===id;
       return `<button class="seat ${on?"on":""}" data-act="assign" data-arg="${id}|${roomId}" data-testid="seat-${id}">
-        <img src="assets/heroes/${id}.webp" alt="${def.name}">
+        <img src="${heroSprite(id,h.outfit||"patrol")}" alt="${def.name}" onerror="this.onerror=null;this.src='assets/cast/${id}/patrol.webp'">
         ${def.name}${on?" · уже здесь":""}<br><span style="font-weight:700;color:#c49220">${on?"✓ За столом":"Посадить за стол"}</span>
       </button>`;
     }).join("")+`</div>`;
@@ -1151,6 +1201,8 @@ function seatPicker(roomId){
 
 function openRoom(id){
   const d=ROOMS[id];
+  const seated=S.actors.find(x=>x.kind==="hero"&&x.roam===id);
+  if(seated){ seated.react=1.15; if(!seated.say) say(seated, pick(SAY.staff), 1.6); }
   if(S.chiefLv<d.unlock){
     openModal(`<div class="mh">${d.name}</div><div class="ms">Комната откроется, когда кабинет шефа достигнет уровня ${d.unlock}. Листайте участок вниз и улучшайте кабинет шефа.</div>
       <button class="btn wide" data-act="open" data-arg="chief">К кабинету шефа</button>
@@ -1176,20 +1228,34 @@ function openRoom(id){
   renderRoomModal(id);
 }
 function roomVisualTier(level){
- if(level>=10)return {name:"Легендарный лак",cls:"lux-legend"};
- if(level>=7)return {name:"Золотой люкс",cls:"lux-gold"};
- if(level>=4)return {name:"Неоновый премиум",cls:"lux-neon"};
- if(level>=2)return {name:"Глянцевый ремонт",cls:"lux-gloss"};
- return {name:"Стартовый интерьер",cls:"lux-basic"};
+  const d=roomDecorTier(level);
+  const cls=["","lux-basic","lux-gloss","lux-neon","lux-gold","lux-legend"][d.tier]||"lux-basic";
+  return {name:d.name, cls, decor:d};
 }
-const ROOM_DECOR={reception:"✉",detective:"⌕",interrog:"◈",cells:"▦",garage:"🚓",chief:"♛",armory:"⬡",electric:"⚡",suggest:"✿",gasstation:"⛽",press:"◉"};
+function roomChangeList(level){
+  const bits=["иерусалимский камень"];
+  if(level>=2) bits.push("полированный мрамор");
+  if(level>=3) bits.push("латунные лампы");
+  if(level>=4) bits.push("золотая окантовка");
+  if(level>=5) bits.push("ковёр и медальон");
+  if(level>=6) bits.push("стеклянные панели");
+  if(level>=7) bits.push("люстра");
+  if(level>=8) bits.push("колонна");
+  if(level>=9) bits.push("стеклянная столешница");
+  if(level>=10) bits.push("сапфировый лак");
+  return bits;
+}
 function roomVisualHTML(id,level){
- const tier=roomVisualTier(level);
- return `<div class="room-visual ${tier.cls}" data-testid="room-visual-${id}" role="img" aria-label="${ROOMS[id].name}: ${tier.name}">
- <div class="rv-sky"><span>חיפה · HAIFA</span><b>✡</b><span>ים תיכון</span></div>
- <div class="rv-windows"><i></i><i></i><i></i></div><div class="rv-ceiling">✦ ━━━━━ ✦</div>
- <div class="rv-furniture"><span>${ROOM_DECOR[id]||"✦"}</span><span>▤</span><span>✦</span></div>
- <div class="rv-floor"></div><div class="rv-caption">✦ ${tier.name} · уровень ${level}</div></div>`;
+  const tier=roomVisualTier(level);
+  const bits=roomChangeList(level).join(" · ");
+  return `<canvas class="room-preview" data-preview="${id}" data-level="${level}" data-testid="room-visual-${id}" width="640" height="360" aria-label="${ROOMS[id].name}: ${tier.name}"></canvas>
+    <div class="rv-caption">✦ ${tier.name} · уровень ${level}<br>${bits}</div>`;
+}
+function paintRoomPreviews(root){
+  if(!window.Scene) return;
+  (root||document).querySelectorAll("canvas.room-preview").forEach(cv=>{
+    Scene.paintPreview(cv, cv.dataset.preview, +(cv.dataset.level||1));
+  });
 }
 function renderRoomModal(id){
   const d=ROOMS[id], r=S.rooms[id], cost=roomCost(id,r.level);
@@ -1239,7 +1305,7 @@ function renderRoomModal(id){
           <button class="btn ${on?"grey":""}" data-act="order" data-arg="${o.id}">${on?"Ещё раз":"Выполнить"}</button></div>`;
       }).join("");
   }
-  const asg=def?`<div class="assignee"><img src="assets/heroes/${hid}.webp" alt="">
+  const asg=def?`<div class="assignee"><img src="${heroSprite(hid,S.heroes[hid].outfit)}" alt="" onerror="this.onerror=null;this.src='assets/cast/${hid}/patrol.webp'">
       <div><b>${def.name}</b><div class="ms">${def.role} · ур. ${S.heroes[hid].level} · за столом</div></div></div>`
     :`<div class="assignee"><div style="width:52px;height:52px;border-radius:12px;background:#e8f3ff;display:flex;align-items:center;justify-content:center">⭐</div>
       <div><b>Стол свободен</b><div class="ms">Посадите сотрудницу — она сразу появится здесь</div></div></div>`;
@@ -1288,6 +1354,7 @@ function openModal(html){
   m.innerHTML=`<div class="box" tabindex="-1">${html}<button type="button" class="close" data-act="close" aria-label="Закрыть">✕</button></div>`;
   const box=m.querySelector(".box");
   if(box && box.focus){ try{ box.focus({preventScroll:true}); }catch(e){} }
+  paintRoomPreviews(m);
   placePointer();
   restoreStageScroll();
   requestAnimationFrame(restoreStageScroll);
@@ -1678,6 +1745,7 @@ function frame(ts){
   try{
     tick(dt);
     lastView+=dt;bubbleClock+=dt;labelClock+=dt;questClock+=dt;
+    if(window.Scene && TAB==="station") Scene.frame(ts,S);
     if(TAB==="station"&&lastView>=0.12){lastView=0;renderActors();}
     if(TAB==="station"&&bubbleClock>=0.25){bubbleClock=0;renderBubbles();placePointer();}
     if(TAB==="station"&&labelClock>=0.65){labelClock=0;renderLabels();}
@@ -1694,17 +1762,18 @@ async function start(){
   // Decode first screen only; additional portraits load when needed.
   const assets=[
     "assets/avatar.webp","apple-touch-icon.png",
-    "assets/rooms/wing-start.webp","assets/rooms/wing-more.webp",
-    "assets/sprites/car-police.webp","assets/sprites/civ-woman.webp",
-    "assets/sprites/suspect-f.webp","assets/heroes/nika.webp",
-    "assets/heroes/anna.webp","assets/sprites/anna.webp"
+    "assets/scene/jerusalem.webp","assets/cast/dog/rika.webp",
+    "assets/cast/anna/patrol.webp","assets/cast/civ/yael.webp",
+    "assets/heroes/nika.webp"
   ];
   let n=0;
   const set=()=>{n++; ld.style.width=Math.round(10+n/assets.length*90)+"%"; txt.textContent="Загрузка "+n+"/"+assets.length;};
   await Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,1500))]);
   await Promise.all(assets.map(src=>new Promise(res=>{const i=new Image();let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);set();res();};const timer=setTimeout(finish,5000);i.onload=i.onerror=finish;i.src=src;})));
   const existed=load();
-  document.documentElement.dataset.design="israel-gloss";
+  document.documentElement.dataset.design="lacquer-real";
+  const gameEl=$("#game"); if(gameEl) gameEl.classList.add("live-scene");
+  if(window.Scene){ Scene.init($("#scene")); Scene.preload(S); }
   AU.muted=!!S.muted;
   hud();
   spawnStaff();
@@ -1768,6 +1837,26 @@ async function start(){
 
   $("#loading").classList.add("hidden");
   $("#game").classList.remove("hidden");
+  if(window.Scene) Scene.resize();
+  const stageElClick=$("#stage");
+  if(stageElClick && !stageElClick.dataset.live){
+    stageElClick.dataset.live="1";
+    stageElClick.addEventListener("click", ev=>{
+      if(!window.Scene || ev.target.closest("[data-act]")) return;
+      const canvas=$("#scene"); if(!canvas) return;
+      const r=canvas.getBoundingClientRect();
+      const id=Scene.pick(ev.clientX-r.left, ev.clientY-r.top);
+      if(!id) return;
+      const a=S.actors.find(x=>x.id===id);
+      if(!a) return;
+      a.react=1.2;
+      if(a.kind==="vip"){ collectVip(); return; }
+      if(a.kind==="dog") say(a,"Гав! Хвост так и ходит.",1.4);
+      else if(a.kind==="hero") say(a,pick(SAY.staff),1.8);
+      else if(a.kind==="suspect"||a.kind==="inmate") say(a,pick(SAY.suspect),1.8);
+      else say(a,pick(SAY.citizen),1.8);
+    });
+  }
   requestAnimationFrame(frame);
 
   syncQuestFromState();
